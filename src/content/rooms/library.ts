@@ -24,7 +24,8 @@ export const ROOMS: RoomTemplate[] = [
     entities: [obstacle(-1, 1, 25), obstacle(1, 1, 25), obstacle(0, 1.5, 45), obstacle(0, 0.5, 45), crystal(-1.5, 2, 60)] },
   { id: "nt-hard-1", theme: "neonTunnel", difficulty: 8, length: 85,
     entities: [obstacle(-1.5, 1, 15), obstacle(-0.5, 1, 15), obstacle(0.5, 1, 15), obstacle(1.5, 1, 15),
-               obstacle(0, 1.5, 45), obstacle(0, 0.5, 45), obstacle(-1, 1, 65), obstacle(1, 1, 65)] },
+               obstacle(0, 1.5, 45), obstacle(0, 0.5, 45), obstacle(-1, 1, 65), obstacle(1, 1, 65),
+               crystal(0, 2.2, 78)] },
 
   // ---- Glass Chapel (easy → very hard) ----
   { id: "gc-easy-1", theme: "glassChapel", difficulty: 2, length: 60,
