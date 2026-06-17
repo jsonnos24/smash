@@ -1,5 +1,5 @@
 import {
-  Points, BufferGeometry, Float32BufferAttribute, PointsMaterial, Scene, Vector3,
+  Points, BufferGeometry, Float32BufferAttribute, PointsMaterial, Scene, Vector3, Color,
 } from "three";
 
 const MAX_PARTICLES = 600;
@@ -8,19 +8,25 @@ const LIFETIME = 0.6;
 export class ShatterField {
   private positions = new Float32Array(MAX_PARTICLES * 3);
   private velocities = new Float32Array(MAX_PARTICLES * 3);
+  private colors = new Float32Array(MAX_PARTICLES * 3);
   private ages = new Float32Array(MAX_PARTICLES).fill(LIFETIME + 1);
   private geom = new BufferGeometry();
   private points: Points;
+  private scratch = new Color();
 
   constructor(scene: Scene) {
     this.geom.setAttribute("position", new Float32BufferAttribute(this.positions, 3));
-    this.points = new Points(this.geom, new PointsMaterial({ size: 0.15, transparent: true, opacity: 0.9 }));
+    this.geom.setAttribute("color", new Float32BufferAttribute(this.colors, 3));
+    this.points = new Points(
+      this.geom,
+      new PointsMaterial({ size: 0.15, transparent: true, opacity: 0.9, vertexColors: true }),
+    );
     this.points.frustumCulled = false;
     scene.add(this.points);
   }
 
   burst(at: Vector3, color: number): void {
-    (this.points.material as PointsMaterial).color.setHex(color);
+    this.scratch.setHex(color);
     let spawned = 0;
     for (let i = 0; i < MAX_PARTICLES && spawned < 24; i++) {
       if (this.ages[i] <= LIFETIME) continue;
@@ -31,6 +37,9 @@ export class ShatterField {
       this.velocities[i * 3] = (Math.random() - 0.5) * 6;
       this.velocities[i * 3 + 1] = (Math.random() - 0.5) * 6;
       this.velocities[i * 3 + 2] = (Math.random() - 0.5) * 6;
+      this.colors[i * 3] = this.scratch.r;
+      this.colors[i * 3 + 1] = this.scratch.g;
+      this.colors[i * 3 + 2] = this.scratch.b;
       spawned++;
     }
   }
@@ -43,7 +52,11 @@ export class ShatterField {
       this.positions[i * 3 + 1] += this.velocities[i * 3 + 1] * dt;
       this.positions[i * 3 + 2] += this.velocities[i * 3 + 2] * dt;
     }
-    (this.geom.getAttribute("position") as Float32BufferAttribute).copyArray(this.positions);
-    this.geom.getAttribute("position").needsUpdate = true;
+    const posAttr = this.geom.getAttribute("position") as Float32BufferAttribute;
+    posAttr.copyArray(this.positions);
+    posAttr.needsUpdate = true;
+    const colAttr = this.geom.getAttribute("color") as Float32BufferAttribute;
+    colAttr.copyArray(this.colors);
+    colAttr.needsUpdate = true;
   }
 }

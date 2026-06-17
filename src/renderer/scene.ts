@@ -93,6 +93,12 @@ export class SceneManager {
   }
 
   dispose(): void {
+    for (const [, mesh] of this.meshes) {
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as MeshStandardMaterial).dispose();
+    }
+    this.meshes.clear();
     this.renderer.dispose();
   }
 }
