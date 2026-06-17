@@ -1,0 +1,22 @@
+import type { Theme } from "../types";
+
+export interface Placement {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export type EntityKind = "obstacle" | "crystal";
+
+export interface RoomEntity extends Placement {
+  kind: EntityKind;
+  size: number;
+}
+
+export interface RoomTemplate {
+  id: string;
+  theme: Theme;
+  difficulty: number;
+  length: number;
+  entities: RoomEntity[];
+}
