@@ -47,4 +47,17 @@ describe("buildLevel", () => {
     const b = buildLevel(LEVELS[4], ROOMS, makeRng(5)).rooms.map((r) => r.template.id);
     expect(a).toEqual(b);
   });
+
+  it("never decreases difficulty between consecutive rooms, across many seeds and all levels", () => {
+    for (let seed = 0; seed < 200; seed++) {
+      for (const level of LEVELS) {
+        const built = buildLevel(level, ROOMS, makeRng(seed));
+        for (let i = 1; i < built.rooms.length; i++) {
+          expect(built.rooms[i].template.difficulty).toBeGreaterThanOrEqual(
+            built.rooms[i - 1].template.difficulty,
+          );
+        }
+      }
+    }
+  });
 });

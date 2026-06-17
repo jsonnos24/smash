@@ -27,19 +27,22 @@ export function buildLevel(
 
   const placed: PlacedRoom[] = [];
   let z = 0;
+  let lastDifficulty = -Infinity;
   while (z < level.length) {
     const progress = Math.min(1, z / level.length);
     const target = low + (high - low) * progress;
-    // candidates sorted by closeness to target difficulty
-    const sorted = [...pool].sort(
-      (a, b) => Math.abs(a.difficulty - target) - Math.abs(b.difficulty - target),
-    );
-    // take the closest cluster (within 1.0 of the best) and pick one via rng
-    const best = Math.abs(sorted[0].difficulty - target);
-    const cluster = sorted.filter((r) => Math.abs(r.difficulty - target) <= best + 1.0);
+    // Only rooms at or above the last placed room's difficulty keep the ramp
+    // non-decreasing. The pool's hardest rooms always satisfy this, so the
+    // eligible set is never empty while the pool is non-empty.
+    const eligible = pool.filter((r) => r.difficulty >= lastDifficulty);
+    // Among eligible rooms, take those nearest the target difficulty; rng only
+    // breaks ties between rooms whose difficulty is equally close to the target.
+    const best = Math.min(...eligible.map((r) => Math.abs(r.difficulty - target)));
+    const cluster = eligible.filter((r) => Math.abs(r.difficulty - target) <= best + 1e-9);
     const choice = cluster[Math.floor(rng() * cluster.length)];
     placed.push({ template: choice, startZ: z });
     z += choice.length;
+    lastDifficulty = choice.difficulty;
   }
 
   return { level, rooms: placed, totalLength: z };
