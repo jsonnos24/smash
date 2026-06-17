@@ -31,14 +31,21 @@ describe("Session", () => {
     expect(s.state.status).toBe("complete");
   });
 
-  it("a center throw that hits an obstacle changes balls and score", () => {
+  it("a center throw that hits a nearby obstacle changes balls and score", () => {
     const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
     const before = { balls: s.state.balls, score: s.state.score };
-    // advance until at least one obstacle collider is active
-    for (let i = 0; i < 200 && s.colliders().length === 0; i++) s.update(0.05);
-    s.throwBall({ nx: 0, ny: 0 });
-    for (let i = 0; i < 60; i++) s.update(1 / 60);
-    const changed = s.state.balls !== before.balls || s.state.score !== before.score;
+    // Spray a center ball whenever a centered obstacle is just ahead, so a ball
+    // connects regardless of the world's forward speed (a faraway throw would
+    // otherwise drop below the target under gravity before arriving).
+    let changed = false;
+    for (let i = 0; i < 600 && !changed; i++) {
+      s.update(1 / 60);
+      const obstacleJustAhead = s
+        .colliders()
+        .some((c) => c.kind === "obstacle" && c.box.max.z > -8 && c.box.min.z < 2);
+      if (obstacleJustAhead) s.throwBall({ nx: 0, ny: 0 });
+      changed = s.state.balls !== before.balls || s.state.score !== before.score;
+    }
     expect(changed).toBe(true);
   });
 

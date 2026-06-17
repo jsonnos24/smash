@@ -7,7 +7,7 @@ import { buildLevel, makeRng, type BuiltLevel } from "../generator/levelBuilder"
 import type { LevelDef } from "../content/types";
 import type { RoomTemplate } from "../content/rooms";
 
-const BASE_SPEED = 30; // meters/sec at level.speed = 1
+const BASE_SPEED = 9; // meters/sec at level.speed = 1 (L1=9, L6≈12.4)
 const THROW_SPEED = 45;
 const ACTIVE_NEAR = 5;
 const ACTIVE_FAR = -60;
