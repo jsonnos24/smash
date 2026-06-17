@@ -37,6 +37,8 @@ function bootstrap(): void {
 
   let session: Session | null = null;
   let save = loadSave();
+  let lastLevelId: number | null = null;
+  let lastMode: Mode | null = null;
 
   const resize = () => scene.resize(window.innerWidth, window.innerHeight);
   window.addEventListener("resize", resize);
@@ -72,7 +74,7 @@ function bootstrap(): void {
       loop.resume();
     },
     onRetry: () => {
-      if (session) startLevel(session.built.level.id, session.state.mode);
+      if (lastLevelId !== null && lastMode !== null) startLevel(lastLevelId, lastMode);
     },
     onMenu: () => {
       session = null;
@@ -82,6 +84,8 @@ function bootstrap(): void {
   });
 
   function startLevel(levelId: number, mode: Mode): void {
+    lastLevelId = levelId;
+    lastMode = mode;
     audio.unlock();
     const level = LEVELS.find((l) => l.id === levelId)!;
     const theme = ROOMS[0].theme;
@@ -100,13 +104,15 @@ function bootstrap(): void {
 
   function endRun(): void {
     if (!session) return;
-    const completed = session.state.status === "complete";
-    save = recordScore(save, session.built.level.id, session.state.score);
+    const s = session;
+    session = null; // re-entrancy lock: prevents a double-record if the loop ticks again before pausing
+    const completed = s.state.status === "complete";
+    save = recordScore(save, s.built.level.id, s.state.score);
     saveSave(save);
     loop.pause();
     menus.showResults({
-      score: session.state.score,
-      best: save.bestScores[session.built.level.id] ?? session.state.score,
+      score: s.state.score,
+      best: save.bestScores[s.built.level.id] ?? s.state.score,
       completed,
     });
   }
