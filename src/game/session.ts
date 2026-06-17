@@ -63,6 +63,10 @@ export class Session {
   get built(): BuiltLevel {
     return this._built;
   }
+  /** Live thrown balls, exposed read-only so the renderer can draw them. */
+  get liveBalls(): readonly Ball[] {
+    return this.balls;
+  }
 
   private worldZ(baseZ: number): number {
     return this._state.distance - baseZ; // negative = ahead, approaches 0

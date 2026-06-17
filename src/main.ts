@@ -44,14 +44,25 @@ function bootstrap(): void {
   window.addEventListener("resize", resize);
   resize();
 
+  const BALL_RENDER_ID_OFFSET = 1_000_000; // keep ball ids from colliding with entity ids in scene.sync()
+
   const renderItems = (): RenderItem[] => {
     if (!session) return [];
-    return session.colliders().map((c) => ({
+    const items: RenderItem[] = session.colliders().map((c) => ({
       id: c.id,
       kind: c.kind,
       pos: c.box.getCenter(new Vector3()),
       size: (c.box.max.x - c.box.min.x) / 2,
     }));
+    for (const ball of session.liveBalls) {
+      items.push({
+        id: BALL_RENDER_ID_OFFSET + ball.id,
+        kind: "ball",
+        pos: ball.pos,
+        size: 0.25,
+      });
+    }
+    return items;
   };
 
   const loop = new GameLoop({

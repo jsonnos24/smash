@@ -54,4 +54,16 @@ describe("Session", () => {
     // roomIndex must never exceed the last room's index
     expect(s.state.roomIndex).toBeLessThanOrEqual(s.built.rooms.length - 1);
   });
+
+  it("exposes live thrown balls and advances them for rendering", () => {
+    const s = new Session(LEVELS[0], ROOMS, "casual", cam(), 1);
+    expect(s.liveBalls.length).toBe(0);
+    s.throwBall({ nx: 0, ny: 0 });
+    expect(s.liveBalls.length).toBe(1);
+    const startZ = s.liveBalls[0].pos.z;
+    s.update(0.1);
+    expect(s.liveBalls.length).toBe(1);
+    // a center throw flies forward (−Z), so z decreases from its spawn point
+    expect(s.liveBalls[0].pos.z).toBeLessThan(startZ);
+  });
 });
