@@ -125,7 +125,10 @@ function bootstrap(): void {
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) loop.pause();
+    if (document.hidden && session && session.state.status === "playing") {
+      loop.pause();
+      menus.showPause();
+    }
   });
 
   menus.showMain();
