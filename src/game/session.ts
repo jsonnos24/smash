@@ -68,6 +68,16 @@ export class Session {
     return this._state.distance - baseZ; // negative = ahead, approaches 0
   }
 
+  private roomIndexAt(distance: number): number {
+    const rooms = this._built.rooms;
+    let idx = 0;
+    for (let i = 0; i < rooms.length; i++) {
+      if (rooms[i].startZ <= distance) idx = i;
+      else break;
+    }
+    return idx;
+  }
+
   colliders(): Collider[] {
     const out: Collider[] = [];
     for (const e of this.entities) {
@@ -96,7 +106,8 @@ export class Session {
     if (this._state.status !== "playing") return;
 
     // advance world
-    this._state = { ...this._state, distance: this._state.distance + BASE_SPEED * this.level().speed * dt };
+    const newDistance = this._state.distance + BASE_SPEED * this.level().speed * dt;
+    this._state = { ...this._state, distance: newDistance, roomIndex: this.roomIndexAt(newDistance) };
 
     // step balls and resolve hits
     const colliders = this.colliders();

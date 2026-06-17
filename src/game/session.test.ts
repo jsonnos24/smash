@@ -41,4 +41,17 @@ describe("Session", () => {
     const changed = s.state.balls !== before.balls || s.state.score !== before.score;
     expect(changed).toBe(true);
   });
+
+  it("advances roomIndex as the player progresses through the level", () => {
+    const s = new Session(LEVELS[0], ROOMS, "casual", cam(), 1);
+    expect(s.state.roomIndex).toBe(0);
+    // advance roughly to the start of the second room
+    const secondRoomStart = s.built.rooms[1].startZ;
+    while (s.state.distance < secondRoomStart + 1 && s.state.status === "playing") {
+      s.update(0.1);
+    }
+    expect(s.state.roomIndex).toBeGreaterThanOrEqual(1);
+    // roomIndex must never exceed the last room's index
+    expect(s.state.roomIndex).toBeLessThanOrEqual(s.built.rooms.length - 1);
+  });
 });
