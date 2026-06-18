@@ -1,7 +1,7 @@
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Fog, AmbientLight, DirectionalLight,
   Mesh, BoxGeometry, OctahedronGeometry, SphereGeometry, MeshStandardMaterial,
-  Vector3, Color,
+  Vector3, Color, LineSegments, BufferGeometry, Float32BufferAttribute, LineBasicMaterial,
 } from "three";
 import { THEME_COLORS } from "./themes";
 import type { Theme } from "../content/types";
@@ -13,12 +13,26 @@ export interface RenderItem {
   size: number;
 }
 
+// Corridor geometry constants
+const W = 3.2;
+const FLOOR_Y = -1.6;
+const CEIL_Y = 4.0;
+const NEAR_Z = 2;
+const CORRIDOR_DEPTH = 96;
+const SPACING = 8;
+const RUNGS = CORRIDOR_DEPTH / SPACING; // 12
+
 export class SceneManager {
   readonly scene = new Scene();
   readonly camera: PerspectiveCamera;
   private renderer: WebGLRenderer;
   private meshes = new Map<number, Mesh>();
   private theme: Theme = "crystalCavern";
+
+  private corridorEdgeMaterial!: LineBasicMaterial;
+  private corridorRungMaterial!: LineBasicMaterial;
+  private corridorRungGeom!: BufferGeometry;
+  private corridorRungPositions!: Float32Array;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true });
@@ -29,7 +43,87 @@ export class SceneManager {
     const dir = new DirectionalLight(0xffffff, 0.8);
     dir.position.set(2, 5, 1);
     this.scene.add(dir);
+    this.buildCorridor();
     this.setTheme("crystalCavern");
+  }
+
+  private buildCorridor(): void {
+    const accentColor = THEME_COLORS[this.theme].accent;
+
+    // --- Static longitudinal edges ---
+    // 4 long edges of rectangular tube: from NEAR_Z back to -CORRIDOR_DEPTH
+    // Corners: (-W, FLOOR_Y), (+W, FLOOR_Y), (-W, CEIL_Y), (+W, CEIL_Y)
+    const edgeVerts = new Float32Array([
+      // bottom-left edge
+      -W, FLOOR_Y, NEAR_Z,   -W, FLOOR_Y, -CORRIDOR_DEPTH,
+      // bottom-right edge
+       W, FLOOR_Y, NEAR_Z,    W, FLOOR_Y, -CORRIDOR_DEPTH,
+      // top-left edge
+      -W, CEIL_Y,  NEAR_Z,   -W, CEIL_Y,  -CORRIDOR_DEPTH,
+      // top-right edge
+       W, CEIL_Y,  NEAR_Z,    W, CEIL_Y,  -CORRIDOR_DEPTH,
+    ]);
+    const edgeGeom = new BufferGeometry();
+    edgeGeom.setAttribute("position", new Float32BufferAttribute(edgeVerts, 3));
+    this.corridorEdgeMaterial = new LineBasicMaterial({
+      color: accentColor,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const edgeLines = new LineSegments(edgeGeom, this.corridorEdgeMaterial);
+    this.scene.add(edgeLines);
+
+    // --- Scrolling rungs ---
+    // Each rung: 4 segments = 8 vertices tracing rectangle (±W, FLOOR_Y) → (±W, CEIL_Y)
+    // Segment pairs: bottom, right, top, left
+    const rungVertCount = RUNGS * 8 * 3; // RUNGS rungs × 8 vertices × 3 floats
+    this.corridorRungPositions = new Float32Array(rungVertCount);
+
+    // Precompute x,y for each rung's 8 vertices (same for all rungs)
+    // Rect outline: bottom-left→bottom-right, bottom-right→top-right, top-right→top-left, top-left→bottom-left
+    const rungXY = [
+      -W, FLOOR_Y,   W, FLOOR_Y,   // bottom
+       W, FLOOR_Y,   W, CEIL_Y,    // right
+       W, CEIL_Y,   -W, CEIL_Y,    // top
+      -W, CEIL_Y,   -W, FLOOR_Y,   // left
+    ];
+
+    // Initialize z positions (will be updated by setScroll)
+    for (let i = 0; i < RUNGS; i++) {
+      const base = i * 8 * 3;
+      for (let v = 0; v < 8; v++) {
+        this.corridorRungPositions[base + v * 3 + 0] = rungXY[v * 2 + 0];
+        this.corridorRungPositions[base + v * 3 + 1] = rungXY[v * 2 + 1];
+        this.corridorRungPositions[base + v * 3 + 2] = 0; // placeholder z
+      }
+    }
+
+    this.corridorRungGeom = new BufferGeometry();
+    this.corridorRungGeom.setAttribute(
+      "position",
+      new Float32BufferAttribute(this.corridorRungPositions, 3),
+    );
+    this.corridorRungMaterial = new LineBasicMaterial({
+      color: accentColor,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const rungLines = new LineSegments(this.corridorRungGeom, this.corridorRungMaterial);
+    this.scene.add(rungLines);
+  }
+
+  setScroll(distance: number): void {
+    const d = Math.max(0, distance);
+    for (let i = 0; i < RUNGS; i++) {
+      const z = ((d + i * SPACING) % CORRIDOR_DEPTH) - CORRIDOR_DEPTH;
+      const base = i * 8 * 3;
+      for (let v = 0; v < 8; v++) {
+        this.corridorRungPositions[base + v * 3 + 2] = z;
+      }
+    }
+    const attr = this.corridorRungGeom.getAttribute("position") as Float32BufferAttribute;
+    attr.copyArray(this.corridorRungPositions);
+    attr.needsUpdate = true;
   }
 
   setTheme(theme: Theme): void {
@@ -37,6 +131,12 @@ export class SceneManager {
     const c = THEME_COLORS[theme];
     this.scene.fog = new Fog(c.fog, 10, 90);
     this.scene.background = new Color(c.fog);
+    if (this.corridorEdgeMaterial) {
+      this.corridorEdgeMaterial.color.setHex(c.accent);
+    }
+    if (this.corridorRungMaterial) {
+      this.corridorRungMaterial.color.setHex(c.accent);
+    }
   }
 
   resize(w: number, h: number): void {
@@ -99,6 +199,9 @@ export class SceneManager {
       (mesh.material as MeshStandardMaterial).dispose();
     }
     this.meshes.clear();
+    this.corridorRungGeom.dispose();
+    this.corridorEdgeMaterial.dispose();
+    this.corridorRungMaterial.dispose();
     this.renderer.dispose();
   }
 }
