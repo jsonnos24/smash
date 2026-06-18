@@ -47,6 +47,19 @@ export function applyCrystalHit(state: RunState, level: LevelDef): RunState {
   return { ...state, ...scored, balls: state.balls + refill };
 }
 
+export function applyObstacleCollision(state: RunState, level: LevelDef): RunState {
+  // Crashing into an unbroken obstacle: lose balls, break the streak, no score.
+  let balls = state.balls - obstacleCost(level);
+  let status = state.status;
+  if (state.mode === "casual") {
+    balls = Math.max(1, balls);
+  } else if (balls <= 0) {
+    balls = 0;
+    status = "ended";
+  }
+  return { ...state, balls, hitChain: 0, streak: streakMultiplier(0), status };
+}
+
 export function applyMiss(state: RunState): RunState {
   const hitChain = state.mode === "casual" ? Math.max(0, state.hitChain - 3) : 0;
   return { ...state, hitChain, streak: streakMultiplier(hitChain) };

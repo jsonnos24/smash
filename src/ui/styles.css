@@ -1,5 +1,5 @@
 .hud { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, sans-serif; color: #dffff5; text-shadow: 0 1px 4px #000; }
-.hud-balls { position: absolute; top: 12px; left: 14px; font-size: 24px; font-weight: 700; }
+.hud-balls { position: absolute; top: 12px; left: 14px; font-size: 32px; font-weight: 700; letter-spacing: 0.5px; }
 .hud-reserve-track { width: 90px; height: 6px; background: rgba(255,255,255,.2); border-radius: 3px; margin-top: 4px; }
 .hud-reserve-fill { height: 100%; background: #7ffcd9; border-radius: 3px; transition: width .15s; }
 .hud-score { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; }

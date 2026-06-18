@@ -1,6 +1,6 @@
 import { Box3, PerspectiveCamera, Vector3 } from "three";
 import { createRunState, type Mode, type RunState } from "./state";
-import { applyObstacleHit, applyCrystalHit, applyMiss } from "./economy";
+import { applyObstacleHit, applyCrystalHit, applyMiss, applyObstacleCollision } from "./economy";
 import { createThrow, type ScreenPoint } from "./throw";
 import { stepBall, detectHit, type Ball, type Collider } from "../engine/physics";
 import { buildLevel, makeRng, type BuiltLevel } from "../generator/levelBuilder";
@@ -131,6 +131,17 @@ export class Session {
       if (ball.alive) surviving.push(ball);
     }
     this.balls = surviving;
+
+    // Unbroken obstacles that reach the player cost balls (a crash).
+    for (const e of this.entities) {
+      if (e.consumed || e.kind !== "obstacle") continue;
+      if (this.worldZ(e.baseZ) >= 0) {
+        e.consumed = true;
+        this._state = applyObstacleCollision(this._state, this.level());
+        this.events.onShatter?.("obstacle", new Vector3(e.x, e.y, this.worldZ(e.baseZ)));
+        if (this._state.status !== "playing") break;
+      }
+    }
 
     // complete the level
     if (this._state.distance >= this._built.totalLength) {

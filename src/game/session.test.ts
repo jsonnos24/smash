@@ -62,6 +62,14 @@ describe("Session", () => {
     expect(s.state.roomIndex).toBeLessThanOrEqual(s.built.rooms.length - 1);
   });
 
+  it("an unbroken obstacle that reaches the player costs balls", () => {
+    const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
+    const start = s.state.balls;
+    // never throw; just glide forward — obstacles crash into the player
+    for (let i = 0; i < 2000 && s.state.status === "playing"; i++) s.update(0.05);
+    expect(s.state.balls).toBeLessThan(start);
+  });
+
   it("exposes live thrown balls and advances them for rendering", () => {
     const s = new Session(LEVELS[0], ROOMS, "casual", cam(), 1);
     expect(s.liveBalls.length).toBe(0);

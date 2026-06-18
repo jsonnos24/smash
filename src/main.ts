@@ -71,6 +71,7 @@ function bootstrap(): void {
       shatter.update(dt);
       if (session) {
         scene.sync(renderItems());
+        scene.setScroll(session.state.distance);
         hud.update(session.state, session.built.level, session.built.rooms.length);
         if (session.state.status !== "playing") endRun();
       }

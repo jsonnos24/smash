@@ -6,6 +6,7 @@ import {
   applyObstacleHit,
   applyCrystalHit,
   applyMiss,
+  applyObstacleCollision,
   OBSTACLE_POINTS,
   CRYSTAL_POINTS,
 } from "./economy";
@@ -59,6 +60,33 @@ describe("applyCrystalHit", () => {
   it("refills one extra ball in Casual", () => {
     const s = applyCrystalHit(createRunState("casual", 10), L1);
     expect(s.balls).toBe(16); // +5 +1
+  });
+});
+
+describe("applyObstacleCollision", () => {
+  it("costs balls and resets the streak in Normal, no score", () => {
+    let s = createRunState("normal", 10);
+    s = applyObstacleHit(s, L1); // earn some score + streak first
+    const beforeBalls = s.balls;
+    const beforeScore = s.score;
+    s = applyObstacleCollision(s, L1);
+    expect(s.balls).toBe(beforeBalls - obstacleCost(L1));
+    expect(s.score).toBe(beforeScore); // a crash scores nothing
+    expect(s.hitChain).toBe(0);
+    expect(s.streak).toBe(1);
+    expect(s.status).toBe("playing");
+  });
+  it("ends the run in Normal when a crash empties the reserve", () => {
+    const low = { ...createRunState("normal", 1), balls: 1 };
+    const s = applyObstacleCollision(low, L6); // cost 4
+    expect(s.balls).toBe(0);
+    expect(s.status).toBe("ended");
+  });
+  it("clamps to 1 and never ends in Casual", () => {
+    const low = { ...createRunState("casual", 1), balls: 1 };
+    const s = applyObstacleCollision(low, L6);
+    expect(s.balls).toBe(1);
+    expect(s.status).toBe("playing");
   });
 });
 
