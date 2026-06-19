@@ -5,13 +5,14 @@ import { ShatterField } from "./renderer/shatter";
 import { GameLoop } from "./engine/loop";
 import { Session } from "./game/session";
 import { Hud } from "./ui/hud";
+import { Juice } from "./ui/juice";
 import { Menus } from "./ui/menus";
 import { InputController } from "./game/input";
 import { AudioManager } from "./audio/audio";
 import { loadSave, recordRun, saveSave } from "./persistence/save";
 import { detectWebGL } from "./engine/perf";
 import { ROOMS } from "./content/rooms";
-import { START_BALLS, CHECKPOINT_SPACING, themeAt } from "./content/endless";
+import { START_BALLS, CHECKPOINT_SPACING, themeAt, speedAt } from "./content/endless";
 import type { Mode } from "./game/state";
 
 const app = document.getElementById("app")!;
@@ -32,6 +33,7 @@ function bootstrap(): void {
   const scene = new SceneManager(canvas);
   const shatter = new ShatterField(scene.scene);
   const hud = new Hud(app);
+  const juice = new Juice(app);
   const audio = new AudioManager({ muted: loadSave().muted });
   const input = new InputController(canvas);
 
@@ -70,11 +72,15 @@ function bootstrap(): void {
     update: (dt) => {
       session?.update(dt);
       shatter.update(dt);
+      juice.update(dt);
       if (session) {
         scene.sync(renderItems());
         scene.setScroll(session.state.distance, 0);
         hud.update(session.state, START_BALLS, session.checkpoint);
+        juice.speed(Math.min(1, Math.max(0, (speedAt(session.state.distance) - 1) / 0.45)));
         if (session.state.status !== "playing") endRun();
+      } else {
+        juice.speed(0);
       }
     },
     render: () => scene.render(),
@@ -138,8 +144,13 @@ function bootstrap(): void {
         const color = kind === "crystal" ? 0x7ffcd9 : kind === "powerup" ? 0xff5cc8 : 0x4fb3a3;
         shatter.burst(at, color);
         audio.playSfx(kind === "obstacle" ? "shatterGlass" : kind === "powerup" ? "powerup" : "shatterCrystal");
+        const v = at.clone().project(scene.camera);
+        if (v.z < 1) {
+          const pts = kind === "crystal" ? 100 : kind === "powerup" ? 150 : 50;
+          juice.popup(`+${pts}`, (v.x * 0.5 + 0.5) * window.innerWidth, (-v.y * 0.5 + 0.5) * window.innerHeight);
+        }
       },
-      onCrash: () => { scene.shake(0.9); audio.playSfx("crash"); },
+      onCrash: () => { scene.shake(0.9); audio.playSfx("crash"); juice.flash(); },
       onCheckpoint: (cp) => {
         theme = themeAt(Math.floor(cp / CHECKPOINT_SPACING));
         scene.setTheme(theme);

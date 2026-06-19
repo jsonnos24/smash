@@ -2,6 +2,7 @@ import type { RunState } from "../game/state";
 
 export class Hud {
   private el: HTMLDivElement;
+  private lastStreak = 1;
 
   constructor(private root: HTMLElement) {
     this.el = document.createElement("div");
@@ -26,7 +27,16 @@ export class Hud {
     q("balls").textContent = `◍ ${state.balls}`;
     q("reserve").style.width = `${Math.max(0, Math.min(100, (state.balls / startBalls) * 100))}%`;
     q("score").textContent = state.score.toLocaleString("en-US");
-    q("streak").textContent = `×${state.streak} streak`;
+    const streakEl = q("streak");
+    streakEl.textContent = `×${state.streak} streak`;
+    if (state.streak > this.lastStreak) {
+      streakEl.style.transform = "scale(1.6)";
+      streakEl.style.color = "#ffffff";
+    } else {
+      streakEl.style.transform = "scale(1)";
+      streakEl.style.color = "";
+    }
+    this.lastStreak = state.streak;
     q("powerup").textContent = state.powerupT > 0 ? `MULTIBALL ${Math.ceil(state.powerupT)}s` : "";
     q("mode").textContent = state.mode.toUpperCase();
     q("distance").textContent = `${Math.round(state.distance)}m · CP ${checkpoint}m`;

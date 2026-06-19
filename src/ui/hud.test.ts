@@ -33,4 +33,12 @@ describe("Hud", () => {
     hud.update({ ...createRunState("normal", 20), powerupT: 0 }, 20, 0);
     expect(root.querySelector("[data-hud=powerup]")?.textContent).toBe("");
   });
+  it("pulses the streak element when the streak increases", () => {
+    const root = document.createElement("div");
+    const hud = new Hud(root);
+    hud.update({ ...createRunState("normal", 20), streak: 1 }, 20, 0);
+    hud.update({ ...createRunState("normal", 20), streak: 2 }, 20, 0);
+    const el = root.querySelector("[data-hud=streak]") as HTMLElement;
+    expect(el.style.transform).toContain("scale(1.6)");
+  });
 });
