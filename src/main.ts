@@ -111,7 +111,7 @@ function bootstrap(): void {
         shatter.burst(at, kind === "crystal" ? 0x7ffcd9 : 0x4fb3a3);
         audio.playSfx(kind === "crystal" ? "shatterCrystal" : "shatterGlass");
       },
-      onCrash: () => scene.shake(0.35),
+      onCrash: () => scene.shake(0.9),
     });
     menus.hide();
     loop.resume();

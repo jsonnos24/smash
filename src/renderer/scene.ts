@@ -247,7 +247,7 @@ export class SceneManager {
       this.renderer.render(this.scene, this.camera);
       this.camera.position.x -= ox;
       this.camera.position.y -= oy;
-      this.shakeT *= 0.8;
+      this.shakeT *= 0.85;
     } else {
       this.shakeT = 0;
       this.renderer.render(this.scene, this.camera);
