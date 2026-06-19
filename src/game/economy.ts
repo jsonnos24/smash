@@ -16,7 +16,9 @@ function scoreHit(state: RunState, points: number): Pick<RunState, "score" | "hi
 }
 
 export function applyObstacleHit(state: RunState): RunState {
-  return { ...state, ...scoreHit(state, OBSTACLE_POINTS) };
+  // Smashing refunds the thrown ball (net zero), so accurate clears are free —
+  // you only bleed balls from misses and crashes.
+  return { ...state, ...scoreHit(state, OBSTACLE_POINTS), balls: Math.min(MAX_BALLS, state.balls + 1) };
 }
 
 export function applyCrystalHit(state: RunState): RunState {

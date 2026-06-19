@@ -10,12 +10,17 @@ import {
 } from "./economy";
 
 describe("applyObstacleHit", () => {
-  it("scores and builds streak without costing balls", () => {
+  it("scores, builds streak, and refunds the thrown ball (+1)", () => {
     const s = applyObstacleHit(createRunState("normal", 25));
     expect(s.score).toBe(OBSTACLE_POINTS * 1);
     expect(s.hitChain).toBe(1);
-    expect(s.balls).toBe(25);
+    expect(s.balls).toBe(26);
     expect(s.status).toBe("playing");
+  });
+
+  it("the smash refund never exceeds the cap", () => {
+    const s = { ...createRunState("normal", 40), balls: 40 };
+    expect(applyObstacleHit(s).balls).toBe(40);
   });
 });
 
