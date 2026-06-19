@@ -105,6 +105,7 @@ function bootstrap(): void {
       menus.showMain();
       loop.pause();
     },
+    onToggleMute: (muted) => audio.setMuted(muted),
   });
 
   function pauseGame(): void {
@@ -136,13 +137,14 @@ function bootstrap(): void {
       onShatter: (kind, at) => {
         const color = kind === "crystal" ? 0x7ffcd9 : kind === "powerup" ? 0xff5cc8 : 0x4fb3a3;
         shatter.burst(at, color);
-        audio.playSfx(kind === "obstacle" ? "shatterGlass" : "shatterCrystal");
+        audio.playSfx(kind === "obstacle" ? "shatterGlass" : kind === "powerup" ? "powerup" : "shatterCrystal");
       },
-      onCrash: () => scene.shake(0.9),
+      onCrash: () => { scene.shake(0.9); audio.playSfx("crash"); },
       onCheckpoint: (cp) => {
         theme = themeAt(Math.floor(cp / CHECKPOINT_SPACING));
         scene.setTheme(theme);
         audio.playMusic(theme);
+        audio.playSfx("checkpoint");
       },
     }, startDistance);
     menus.hide();

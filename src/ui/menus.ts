@@ -7,6 +7,7 @@ export interface MenuCallbacks {
   onResume: () => void;
   onRetry: () => void;
   onMenu: () => void;
+  onToggleMute: (muted: boolean) => void;
 }
 
 export class Menus {
@@ -31,6 +32,13 @@ export class Menus {
     this.save = { ...this.save, mode: this._mode };
     saveSave(this.save);
     return this._mode;
+  }
+
+  toggleMute(): boolean {
+    this.save = { ...this.save, muted: !this.save.muted };
+    saveSave(this.save);
+    this.cb.onToggleMute(this.save.muted);
+    return this.save.muted;
   }
 
   setSave(s: SaveData): void {
@@ -58,6 +66,12 @@ export class Menus {
       modeBtn.textContent = `Mode: ${this._mode.toUpperCase()}`;
     });
     this.overlay.appendChild(modeBtn);
+
+    const soundBtn = this.button(`Sound: ${this.save.muted ? "OFF" : "ON"}`, () => {
+      const muted = this.toggleMute();
+      soundBtn.textContent = `Sound: ${muted ? "OFF" : "ON"}`;
+    });
+    this.overlay.appendChild(soundBtn);
 
     this.overlay.appendChild(this.button("Play", () => this.cb.onStart(this._mode), { "data-action": "play" }));
     this.overlay.appendChild(this.button("Test Levels (dev)", () => this.showLevels(), { "data-action": "testlevels" }));

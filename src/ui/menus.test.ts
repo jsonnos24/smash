@@ -3,7 +3,7 @@ import { Menus } from "./menus";
 import { defaultSave } from "../persistence/save";
 
 beforeEach(() => localStorage.clear());
-const cbs = () => ({ onStart: vi.fn(), onResume: vi.fn(), onRetry: vi.fn(), onMenu: vi.fn() });
+const cbs = () => ({ onStart: vi.fn(), onResume: vi.fn(), onRetry: vi.fn(), onMenu: vi.fn(), onToggleMute: vi.fn() });
 
 describe("Menus", () => {
   it("toggles mode and persists it", () => {
@@ -35,5 +35,13 @@ describe("Menus", () => {
     expect(root.textContent).toContain("2,000");
     (root.querySelector("[data-action=retry]") as HTMLButtonElement).click();
     expect(cb.onRetry).toHaveBeenCalled();
+  });
+
+  it("toggles mute, persists it, and notifies", () => {
+    const cb = cbs();
+    const m = new Menus(document.createElement("div"), defaultSave(), cb);
+    expect(m.toggleMute()).toBe(true);
+    expect(JSON.parse(localStorage.getItem("smashhit.save")!).muted).toBe(true);
+    expect(cb.onToggleMute).toHaveBeenCalledWith(true);
   });
 });
