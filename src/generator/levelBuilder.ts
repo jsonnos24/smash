@@ -14,6 +14,21 @@ export interface BuiltLevel {
   totalLength: number;
 }
 
+/** Pick the room nearest the target difficulty; rng breaks ties among equally-near rooms. */
+export function pickRoom(
+  rooms: RoomTemplate[],
+  targetDifficulty: number,
+  rng: () => number,
+): RoomTemplate {
+  if (rooms.length === 0) throw new Error("pickRoom: empty room list");
+  const sorted = [...rooms].sort(
+    (a, b) => Math.abs(a.difficulty - targetDifficulty) - Math.abs(b.difficulty - targetDifficulty),
+  );
+  const best = Math.abs(sorted[0].difficulty - targetDifficulty);
+  const cluster = sorted.filter((r) => Math.abs(r.difficulty - targetDifficulty) <= best + 1e-9);
+  return cluster[Math.floor(rng() * cluster.length)];
+}
+
 export function buildLevel(
   level: LevelDef,
   rooms: RoomTemplate[],
@@ -35,11 +50,7 @@ export function buildLevel(
     // non-decreasing. The pool's hardest rooms always satisfy this, so the
     // eligible set is never empty while the pool is non-empty.
     const eligible = pool.filter((r) => r.difficulty >= lastDifficulty);
-    // Among eligible rooms, take those nearest the target difficulty; rng only
-    // breaks ties between rooms whose difficulty is equally close to the target.
-    const best = Math.min(...eligible.map((r) => Math.abs(r.difficulty - target)));
-    const cluster = eligible.filter((r) => Math.abs(r.difficulty - target) <= best + 1e-9);
-    const choice = cluster[Math.floor(rng() * cluster.length)];
+    const choice = pickRoom(eligible, target, rng);
     placed.push({ template: choice, startZ: z });
     z += choice.length;
     lastDifficulty = choice.difficulty;

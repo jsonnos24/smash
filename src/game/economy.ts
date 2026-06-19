@@ -1,14 +1,9 @@
 import { type RunState, streakMultiplier } from "./state";
-import type { LevelDef } from "../content/types";
 
 export const OBSTACLE_POINTS = 50;
 export const CRYSTAL_POINTS = 100;
 
 export const COLLISION_COST = 1;
-
-export function crystalRefill(_level: LevelDef): number {
-  return 1;
-}
 
 function scoreHit(state: RunState, points: number): Pick<RunState, "score" | "hitChain" | "streak"> {
   const hitChain = state.hitChain + 1;
@@ -19,13 +14,12 @@ function scoreHit(state: RunState, points: number): Pick<RunState, "score" | "hi
   };
 }
 
-export function applyObstacleHit(state: RunState, _level: LevelDef): RunState {
+export function applyObstacleHit(state: RunState): RunState {
   return { ...state, ...scoreHit(state, OBSTACLE_POINTS) };
 }
 
-export function applyCrystalHit(state: RunState, level: LevelDef): RunState {
-  const scored = scoreHit(state, CRYSTAL_POINTS);
-  return { ...state, ...scored, balls: state.balls + crystalRefill(level) };
+export function applyCrystalHit(state: RunState): RunState {
+  return { ...state, ...scoreHit(state, CRYSTAL_POINTS), balls: state.balls + 1 };
 }
 
 /** Crashing into any unbroken object: lose a ball, break the streak, no score. */

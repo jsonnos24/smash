@@ -1,11 +1,9 @@
 import type { Mode } from "../game/state";
 import { type SaveData, saveSave } from "../persistence/save";
-import { LEVELS } from "../content/levels";
 
 export interface MenuCallbacks {
-  onStart: (levelId: number, mode: Mode) => void;
+  onStart: (mode: Mode) => void;
   onResume: () => void;
-  onRetry: () => void;
   onMenu: () => void;
 }
 
@@ -33,6 +31,10 @@ export class Menus {
     return this._mode;
   }
 
+  setSave(s: SaveData): void {
+    this.save = s;
+  }
+
   private button(label: string, onClick: () => void, attrs: Record<string, string> = {}): HTMLButtonElement {
     const b = document.createElement("button");
     b.textContent = label;
@@ -55,12 +57,11 @@ export class Menus {
     });
     this.overlay.appendChild(modeBtn);
 
-    for (const lvl of LEVELS) {
-      if (lvl.id > this.save.unlockedLevel) continue;
-      const best = this.save.bestScores[lvl.id];
-      const label = best ? `Level ${lvl.id} — best ${best.toLocaleString("en-US")}` : `Level ${lvl.id}`;
-      this.overlay.appendChild(this.button(label, () => this.cb.onStart(lvl.id, this._mode), { "data-level": String(lvl.id) }));
-    }
+    this.overlay.appendChild(this.button("Play", () => this.cb.onStart(this._mode), { "data-action": "play" }));
+
+    const best = document.createElement("p");
+    best.textContent = `Best: ${this.save.bestDistance.toLocaleString("en-US")}m`;
+    this.overlay.appendChild(best);
   }
 
   showPause(): void {
@@ -70,19 +71,6 @@ export class Menus {
     h.textContent = "Paused";
     this.overlay.appendChild(h);
     this.overlay.appendChild(this.button("Resume", () => this.cb.onResume(), { "data-action": "resume" }));
-    this.overlay.appendChild(this.button("Main Menu", () => this.cb.onMenu(), { "data-action": "menu" }));
-  }
-
-  showResults(opts: { score: number; best: number; completed: boolean }): void {
-    this.overlay.replaceChildren();
-    this.overlay.style.display = "flex";
-    const h = document.createElement("h2");
-    h.textContent = opts.completed ? "Level Complete!" : "Run Over";
-    this.overlay.appendChild(h);
-    const score = document.createElement("p");
-    score.textContent = `Score: ${opts.score.toLocaleString("en-US")} · Best: ${opts.best.toLocaleString("en-US")}`;
-    this.overlay.appendChild(score);
-    this.overlay.appendChild(this.button("Retry", () => this.cb.onRetry(), { "data-action": "retry" }));
     this.overlay.appendChild(this.button("Main Menu", () => this.cb.onMenu(), { "data-action": "menu" }));
   }
 

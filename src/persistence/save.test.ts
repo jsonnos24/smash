@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { defaultSave, loadSave, saveSave, recordScore } from "./save";
+import { defaultSave, loadSave, saveSave, recordRun } from "./save";
 
 beforeEach(() => localStorage.clear());
 
@@ -11,28 +11,23 @@ describe("loadSave", () => {
     localStorage.setItem("smashhit.save", "{not json");
     expect(loadSave()).toEqual(defaultSave());
   });
-  it("returns defaults when the shape is wrong", () => {
-    localStorage.setItem("smashhit.save", JSON.stringify({ version: 99 }));
+  it("returns defaults for an old/wrong shape", () => {
+    localStorage.setItem("smashhit.save", JSON.stringify({ version: 1, bestScores: {} }));
     expect(loadSave()).toEqual(defaultSave());
   });
   it("round-trips a valid save", () => {
-    const data = { ...defaultSave(), mode: "casual" as const, muted: true };
-    saveSave(data);
-    expect(loadSave()).toEqual(data);
+    const d = { ...defaultSave(), mode: "casual" as const, muted: true, bestDistance: 1234, bestScore: 5678 };
+    saveSave(d);
+    expect(loadSave()).toEqual(d);
   });
 });
 
-describe("recordScore", () => {
-  it("keeps the maximum score per level and unlocks the next level", () => {
+describe("recordRun", () => {
+  it("keeps the maximum distance and score", () => {
     let d = defaultSave();
-    d = recordScore(d, 1, 500);
-    d = recordScore(d, 1, 300); // lower, ignored
-    expect(d.bestScores[1]).toBe(500);
-    expect(d.unlockedLevel).toBe(2);
-  });
-  it("never lowers the unlocked level", () => {
-    let d = { ...defaultSave(), unlockedLevel: 4 };
-    d = recordScore(d, 1, 100);
-    expect(d.unlockedLevel).toBe(4);
+    d = recordRun(d, 500, 1000);
+    d = recordRun(d, 300, 2000);
+    expect(d.bestDistance).toBe(500);
+    expect(d.bestScore).toBe(2000);
   });
 });

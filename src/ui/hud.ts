@@ -1,5 +1,4 @@
 import type { RunState } from "../game/state";
-import type { LevelDef } from "../content/types";
 
 export class Hud {
   private el: HTMLDivElement;
@@ -16,19 +15,19 @@ export class Hud {
         <div class="hud-streak" data-hud="streak">×1 streak</div>
       </div>
       <div class="hud-mode" data-hud="mode">NORMAL</div>
-      <div class="hud-distance" data-hud="distance">Room 1 · 0m</div>
+      <div class="hud-distance" data-hud="distance">0m · CP 0m</div>
       `;
     this.root.appendChild(this.el);
   }
 
-  update(state: RunState, level: LevelDef, roomCount: number): void {
+  update(state: RunState, startBalls: number, checkpoint: number): void {
     const q = (s: string) => this.el.querySelector(`[data-hud=${s}]`) as HTMLElement;
     q("balls").textContent = `◍ ${state.balls}`;
-    q("reserve").style.width = `${Math.max(0, Math.min(100, (state.balls / level.startBalls) * 100))}%`;
+    q("reserve").style.width = `${Math.max(0, Math.min(100, (state.balls / startBalls) * 100))}%`;
     q("score").textContent = state.score.toLocaleString("en-US");
     q("streak").textContent = `×${state.streak} streak`;
     q("mode").textContent = state.mode.toUpperCase();
-    q("distance").textContent = `Room ${Math.min(roomCount, state.roomIndex + 1)} · ${Math.round(state.distance)}m`;
+    q("distance").textContent = `${Math.round(state.distance)}m · CP ${checkpoint}m`;
   }
 
   dispose(): void {

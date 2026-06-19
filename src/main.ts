@@ -8,10 +8,10 @@ import { Hud } from "./ui/hud";
 import { Menus } from "./ui/menus";
 import { InputController } from "./game/input";
 import { AudioManager } from "./audio/audio";
-import { loadSave, recordScore, saveSave } from "./persistence/save";
+import { loadSave, recordRun, saveSave } from "./persistence/save";
 import { detectWebGL } from "./engine/perf";
-import { LEVELS } from "./content/levels";
 import { ROOMS } from "./content/rooms";
+import { START_BALLS, CHECKPOINT_SPACING, themeAt } from "./content/endless";
 import type { Mode } from "./game/state";
 
 const app = document.getElementById("app")!;
@@ -37,8 +37,6 @@ function bootstrap(): void {
 
   let session: Session | null = null;
   let save = loadSave();
-  let lastLevelId: number | null = null;
-  let lastMode: Mode | null = null;
 
   const resize = () => scene.resize(window.innerWidth, window.innerHeight);
   window.addEventListener("resize", resize);
@@ -71,80 +69,60 @@ function bootstrap(): void {
       shatter.update(dt);
       if (session) {
         scene.sync(renderItems());
-        scene.setScroll(
-          session.state.distance,
-          session.built.totalLength > 0 ? Math.min(1, session.state.distance / session.built.totalLength) : 0,
-        );
-        hud.update(session.state, session.built.level, session.built.rooms.length);
-        if (session.state.status !== "playing") endRun();
+        scene.setScroll(session.state.distance, 0);
+        hud.update(session.state, START_BALLS, session.checkpoint);
       }
     },
     render: () => scene.render(),
   });
 
   const menus = new Menus(app, save, {
-    onStart: (levelId, mode) => startLevel(levelId, mode),
+    onStart: (mode) => startRun(mode),
     onResume: () => {
       menus.hide();
       loop.resume();
     },
-    onRetry: () => {
-      if (lastLevelId !== null && lastMode !== null) startLevel(lastLevelId, lastMode);
-    },
     onMenu: () => {
+      if (session) {
+        save = recordRun(save, session.state.distance, session.state.score);
+        saveSave(save);
+        menus.setSave(save);
+      }
       session = null;
       menus.showMain();
       loop.pause();
     },
   });
 
-  function startLevel(levelId: number, mode: Mode): void {
-    lastLevelId = levelId;
-    lastMode = mode;
+  function startRun(mode: Mode): void {
     audio.unlock();
-    const level = LEVELS.find((l) => l.id === levelId)!;
-    const theme = ROOMS[0].theme;
+    let theme = themeAt(0);
     scene.setTheme(theme);
     audio.playMusic(theme);
-    session = new Session(level, ROOMS, mode, scene.camera, Date.now() & 0xffff, {
+    session = new Session(ROOMS, mode, scene.camera, Date.now() & 0xffff, {
       onShatter: (kind, at) => {
         shatter.burst(at, kind === "crystal" ? 0x7ffcd9 : 0x4fb3a3);
         audio.playSfx(kind === "crystal" ? "shatterCrystal" : "shatterGlass");
       },
       onCrash: () => scene.shake(0.9),
+      onCheckpoint: (cp) => {
+        theme = themeAt(Math.floor(cp / CHECKPOINT_SPACING));
+        scene.setTheme(theme);
+        audio.playMusic(theme);
+      },
+      onRespawn: () => scene.shake(0.6),
     });
     menus.hide();
     loop.resume();
     if (!loop.running) loop.start();
   }
 
-  function endRun(): void {
-    if (!session) return;
-    const s = session;
-    session = null; // re-entrancy lock: prevents a double-record if the loop ticks again before pausing
-    const completed = s.state.status === "complete";
-    save = recordScore(save, s.built.level.id, s.state.score);
-    saveSave(save);
-    loop.pause();
-    menus.showResults({
-      score: s.state.score,
-      best: save.bestScores[s.built.level.id] ?? s.state.score,
-      completed,
-    });
-  }
-
   input.onThrow((p) => {
-    if (session && session.state.status === "playing") {
-      audio.playSfx("throw");
-      session.throwBall(p);
-    }
+    if (session) { audio.playSfx("throw"); session.throwBall(p); }
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden && session && session.state.status === "playing") {
-      loop.pause();
-      menus.showPause();
-    }
+    if (document.hidden && session) { loop.pause(); menus.showPause(); }
   });
 
   menus.showMain();

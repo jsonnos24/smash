@@ -3,11 +3,11 @@ import { createRunState, type Mode, type RunState } from "./state";
 import { applyObstacleHit, applyCrystalHit, applyMiss, applyCrash } from "./economy";
 import { createThrow, type ScreenPoint } from "./throw";
 import { stepBall, detectHit, type Ball, type Collider } from "../engine/physics";
-import { buildLevel, makeRng, type BuiltLevel } from "../generator/levelBuilder";
-import type { LevelDef } from "../content/types";
+import { makeRng, pickRoom } from "../generator/levelBuilder";
+import { difficultyAt, speedAt, START_BALLS, CHECKPOINT_SPACING, LOOKAHEAD } from "../content/endless";
 import type { RoomTemplate } from "../content/rooms";
 
-const BASE_SPEED = 9; // meters/sec at level.speed = 1 (L1=9, L6≈12.4)
+const BASE_SPEED = 9;
 const THROW_SPEED = 45;
 const ACTIVE_NEAR = 5;
 const ACTIVE_FAR = -60;
@@ -15,12 +15,14 @@ const ACTIVE_FAR = -60;
 export interface SessionEvents {
   onShatter?: (kind: "obstacle" | "crystal", at: Vector3) => void;
   onCrash?: () => void;
+  onCheckpoint?: (distance: number) => void;
+  onRespawn?: () => void;
 }
 
 interface WorldEntity {
   id: number;
   kind: "obstacle" | "crystal";
-  baseZ: number; // room.startZ + entity.z
+  baseZ: number;
   x: number;
   y: number;
   size: number;
@@ -29,58 +31,56 @@ interface WorldEntity {
 
 export class Session {
   private _state: RunState;
-  private _built: BuiltLevel;
-  private entities: WorldEntity[];
+  private entities: WorldEntity[] = [];
   private balls: Ball[] = [];
   private nextId = 1;
+  private nextEntityId = 1;
+  private frontZ = 0;
+  private rng: () => number;
+  private _checkpoint = 0;
 
   constructor(
-    level: LevelDef,
-    rooms: RoomTemplate[],
+    private rooms: RoomTemplate[],
     mode: Mode,
     private camera: PerspectiveCamera,
     seed: number,
     private events: SessionEvents = {},
   ) {
-    this._built = buildLevel(level, rooms, makeRng(seed));
-    this._state = createRunState(mode, level.startBalls);
-    let eid = 1;
-    this.entities = this._built.rooms.flatMap((pr) =>
-      pr.template.entities.map((e) => ({
-        id: eid++,
-        kind: e.kind,
-        baseZ: pr.startZ + e.z,
-        x: e.x,
-        y: e.y,
-        size: e.size,
-        consumed: false,
-      })),
-    );
+    this.rng = makeRng(seed);
+    this._state = createRunState(mode, START_BALLS);
+    this.generateAhead();
   }
 
   get state(): RunState {
     return this._state;
   }
-  get built(): BuiltLevel {
-    return this._built;
-  }
-  /** Live thrown balls, exposed read-only so the renderer can draw them. */
   get liveBalls(): readonly Ball[] {
     return this.balls;
   }
-
-  private worldZ(baseZ: number): number {
-    return this._state.distance - baseZ; // negative = ahead, approaches 0
+  get checkpoint(): number {
+    return this._checkpoint;
   }
 
-  private roomIndexAt(distance: number): number {
-    const rooms = this._built.rooms;
-    let idx = 0;
-    for (let i = 0; i < rooms.length; i++) {
-      if (rooms[i].startZ <= distance) idx = i;
-      else break;
+  private worldZ(baseZ: number): number {
+    return this._state.distance - baseZ;
+  }
+
+  private generateAhead(): void {
+    while (this.frontZ < this._state.distance + LOOKAHEAD) {
+      const tmpl = pickRoom(this.rooms, difficultyAt(this.frontZ), this.rng);
+      for (const e of tmpl.entities) {
+        this.entities.push({
+          id: this.nextEntityId++,
+          kind: e.kind,
+          baseZ: this.frontZ + e.z,
+          x: e.x,
+          y: e.y,
+          size: e.size,
+          consumed: false,
+        });
+      }
+      this.frontZ += tmpl.length;
     }
-    return idx;
   }
 
   colliders(): Collider[] {
@@ -93,36 +93,26 @@ export class Session {
       out.push({
         id: e.id,
         kind: e.kind,
-        box: new Box3(
-          new Vector3(e.x - h, e.y - h, z - h),
-          new Vector3(e.x + h, e.y + h, z + h),
-        ),
+        box: new Box3(new Vector3(e.x - h, e.y - h, z - h), new Vector3(e.x + h, e.y + h, z + h)),
       });
     }
     return out;
   }
 
   throwBall(p: ScreenPoint): void {
-    if (this._state.status !== "playing") return;
     if (this._state.balls <= 0) return;
     const balls =
-      this._state.mode === "casual"
-        ? Math.max(1, this._state.balls - 1)
-        : this._state.balls - 1;
-    const status =
-      this._state.mode === "normal" && balls <= 0 ? "ended" : this._state.status;
-    this._state = { ...this._state, balls, status };
+      this._state.mode === "casual" ? Math.max(1, this._state.balls - 1) : this._state.balls - 1;
+    this._state = { ...this._state, balls };
     this.balls.push(createThrow(this.nextId++, p, this.camera, THROW_SPEED));
   }
 
   update(dt: number): void {
-    if (this._state.status !== "playing") return;
+    const newDistance = this._state.distance + BASE_SPEED * speedAt(this._state.distance) * dt;
+    this._state = { ...this._state, distance: newDistance };
+    this.generateAhead();
+    this.entities = this.entities.filter((e) => e.baseZ >= newDistance - 30);
 
-    // advance world
-    const newDistance = this._state.distance + BASE_SPEED * this.level().speed * dt;
-    this._state = { ...this._state, distance: newDistance, roomIndex: this.roomIndexAt(newDistance) };
-
-    // step balls and resolve hits
     const colliders = this.colliders();
     const surviving: Ball[] = [];
     for (const ball of this.balls) {
@@ -133,7 +123,6 @@ export class Session {
         this.resolveHit(hit.collider);
         ball.alive = false;
       } else if (ball.pos.z > 5 || ball.pos.y < -5) {
-        // flew past the player or fell out: a miss
         this._state = applyMiss(this._state);
         ball.alive = false;
       }
@@ -141,7 +130,6 @@ export class Session {
     }
     this.balls = surviving;
 
-    // Anything unbroken that reaches the player is a crash: costs a ball.
     for (const e of this.entities) {
       if (e.consumed) continue;
       if (this.worldZ(e.baseZ) >= 0) {
@@ -149,14 +137,32 @@ export class Session {
         this._state = applyCrash(this._state);
         this.events.onShatter?.(e.kind, new Vector3(e.x, e.y, this.worldZ(e.baseZ)));
         this.events.onCrash?.();
-        if (this._state.status !== "playing") break;
       }
     }
 
-    // complete the level
-    if (this._state.distance >= this._built.totalLength) {
-      this._state = { ...this._state, status: "complete" };
+    const cp = Math.floor(newDistance / CHECKPOINT_SPACING) * CHECKPOINT_SPACING;
+    if (cp > this._checkpoint) {
+      this._checkpoint = cp;
+      this.events.onCheckpoint?.(cp);
     }
+
+    if (this._state.mode === "normal" && this._state.balls <= 0) this.respawn();
+  }
+
+  private respawn(): void {
+    this._state = {
+      ...this._state,
+      distance: this._checkpoint,
+      balls: START_BALLS,
+      status: "playing",
+      hitChain: 0,
+      streak: 1,
+    };
+    this.balls = [];
+    for (const e of this.entities) {
+      if (e.baseZ >= this._checkpoint) e.consumed = false;
+    }
+    this.events.onRespawn?.();
   }
 
   private resolveHit(collider: Collider): void {
@@ -164,15 +170,8 @@ export class Session {
     if (!e || e.consumed) return;
     e.consumed = true;
     const at = new Vector3(e.x, e.y, this.worldZ(e.baseZ));
-    if (collider.kind === "obstacle") {
-      this._state = applyObstacleHit(this._state, this.level());
-    } else {
-      this._state = applyCrystalHit(this._state, this.level());
-    }
+    if (collider.kind === "obstacle") this._state = applyObstacleHit(this._state);
+    else this._state = applyCrystalHit(this._state);
     this.events.onShatter?.(collider.kind, at);
-  }
-
-  private level(): LevelDef {
-    return this._built.level;
   }
 }

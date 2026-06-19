@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
 import { Session } from "./session";
-import { LEVELS } from "../content/levels";
 import { ROOMS } from "../content/rooms";
+import { START_BALLS, CHECKPOINT_SPACING } from "../content/endless";
 
 function cam(): PerspectiveCamera {
   const c = new PerspectiveCamera(60, 1, 0.1, 1000);
@@ -12,95 +12,69 @@ function cam(): PerspectiveCamera {
   return c;
 }
 
-describe("Session", () => {
-  it("builds a level on construction", () => {
-    const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
-    expect(s.built.rooms.length).toBeGreaterThan(0);
+describe("Session (endless)", () => {
+  it("generates rooms ahead on construction and starts playing", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
     expect(s.state.status).toBe("playing");
+    expect(s.state.balls).toBe(START_BALLS);
+    expect(s.liveBalls.length).toBe(0);
+    expect(s.colliders().length).toBeGreaterThan(0);
   });
 
   it("advances distance over time", () => {
-    const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
+    const s = new Session(ROOMS, "casual", cam(), 1);
     s.update(1);
     expect(s.state.distance).toBeGreaterThan(0);
   });
 
-  it("marks the run complete at the end of the level", () => {
-    const s = new Session(LEVELS[0], ROOMS, "casual", cam(), 1);
-    for (let i = 0; i < 2000 && s.state.status === "playing"; i++) s.update(0.1);
-    expect(s.state.status).toBe("complete");
+  it("keeps generating content far into the run (casual)", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    for (let i = 0; i < 1500; i++) s.update(0.1);
+    expect(s.state.distance).toBeGreaterThan(500);
+    expect(s.colliders().length).toBeGreaterThan(0);
   });
 
-  it("a center throw that hits a nearby obstacle changes balls and score", () => {
-    const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
-    const before = { balls: s.state.balls, score: s.state.score };
-    // Spray a center ball whenever a centered obstacle is just ahead, so a ball
-    // connects regardless of the world's forward speed (a faraway throw would
-    // otherwise drop below the target under gravity before arriving).
-    let changed = false;
-    for (let i = 0; i < 600 && !changed; i++) {
-      s.update(1 / 60);
-      const obstacleJustAhead = s
-        .colliders()
-        .some((c) => c.kind === "obstacle" && c.box.max.z > -8 && c.box.min.z < 2);
-      if (obstacleJustAhead) s.throwBall({ nx: 0, ny: 0 });
-      changed = s.state.balls !== before.balls || s.state.score !== before.score;
-    }
-    expect(changed).toBe(true);
+  it("advances the checkpoint every CHECKPOINT_SPACING meters (casual)", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    for (let i = 0; i < 4000 && s.state.distance < CHECKPOINT_SPACING + 10; i++) s.update(0.1);
+    expect(s.checkpoint).toBe(CHECKPOINT_SPACING);
   });
 
-  it("advances roomIndex as the player progresses through the level", () => {
-    const s = new Session(LEVELS[0], ROOMS, "casual", cam(), 1);
-    expect(s.state.roomIndex).toBe(0);
-    // advance roughly to the start of the second room
-    const secondRoomStart = s.built.rooms[1].startZ;
-    while (s.state.distance < secondRoomStart + 1 && s.state.status === "playing") {
-      s.update(0.1);
-    }
-    expect(s.state.roomIndex).toBeGreaterThanOrEqual(1);
-    // roomIndex must never exceed the last room's index
-    expect(s.state.roomIndex).toBeLessThanOrEqual(s.built.rooms.length - 1);
+  it("Casual never dies and the reserve never drops below 1", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    for (let i = 0; i < 2000; i++) s.update(0.1);
+    expect(s.state.status).toBe("playing");
+    expect(s.state.balls).toBeGreaterThanOrEqual(1);
   });
 
-  it("an unbroken obstacle that reaches the player costs balls", () => {
-    const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
-    const start = s.state.balls;
-    // never throw; just glide forward — obstacles crash into the player
-    for (let i = 0; i < 2000 && s.state.status === "playing"; i++) s.update(0.05);
-    expect(s.state.balls).toBeLessThan(start);
+  it("crashing into unbroken objects drains the reserve (casual)", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    for (let i = 0; i < 600 && s.state.balls > 1; i++) s.update(0.1);
+    expect(s.state.balls).toBeLessThan(START_BALLS);
   });
 
-  it("an uncollected crystal that reaches the player also costs balls", () => {
-    const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
-    const start = s.state.balls;
-    for (let i = 0; i < 2000 && s.state.status === "playing"; i++) s.update(0.05);
-    expect(s.state.balls).toBeLessThan(start);
+  it("Normal respawns at the last checkpoint with a refilled reserve when out of balls", () => {
+    const s = new Session(ROOMS, "normal", cam(), 1);
+    for (let i = 0; i < START_BALLS + 2; i++) s.throwBall({ nx: 0, ny: 0 });
+    expect(s.state.balls).toBe(0);
+    s.update(0.016);
+    expect(s.state.balls).toBe(START_BALLS);
+    expect(s.state.distance).toBe(s.checkpoint);
   });
 
-  it("exposes live thrown balls and advances them for rendering", () => {
-    const s = new Session(LEVELS[0], ROOMS, "casual", cam(), 1);
-    expect(s.liveBalls.length).toBe(0);
-    s.throwBall({ nx: 0, ny: 0 });
-    expect(s.liveBalls.length).toBe(1);
-    const startZ = s.liveBalls[0].pos.z;
-    s.update(0.1);
-    expect(s.liveBalls.length).toBe(1);
-    // a center throw flies forward (−Z), so z decreases from its spawn point
-    expect(s.liveBalls[0].pos.z).toBeLessThan(startZ);
-  });
-
-  it("throwing a ball costs one from the reserve in Normal", () => {
-    const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
+  it("throwing costs one ball in Normal", () => {
+    const s = new Session(ROOMS, "normal", cam(), 1);
     const before = s.state.balls;
     s.throwBall({ nx: 0, ny: 0 });
     expect(s.state.balls).toBe(before - 1);
     expect(s.liveBalls.length).toBe(1);
   });
 
-  it("Casual throwing never drops the reserve below 1 and always fires", () => {
-    const s = new Session(LEVELS[0], ROOMS, "casual", cam(), 1);
-    for (let i = 0; i < 100; i++) s.throwBall({ nx: 0, ny: 0 });
-    expect(s.state.balls).toBeGreaterThanOrEqual(1);
-    expect(s.liveBalls.length).toBe(100);
+  it("exposes live thrown balls and advances them", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    s.throwBall({ nx: 0, ny: 0 });
+    const startZ = s.liveBalls[0].pos.z;
+    s.update(0.1);
+    expect(s.liveBalls[0]?.pos.z ?? Infinity).toBeLessThan(startZ);
   });
 });
