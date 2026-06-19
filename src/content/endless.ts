@@ -13,12 +13,12 @@ export function difficultyAt(distance: number): number {
 }
 
 /**
- * Constant forward speed. A continuously-changing scroll speed makes the
- * on-rails motion feel juddery, so speed is steady and difficulty comes from
- * obstacle density (difficultyAt), not acceleration.
+ * Forward speed: a steady baseline with brief, smoothly-eased surges for
+ * tension. Smooth on any display thanks to the variable-timestep loop.
  */
-export function speedAt(_distance: number): number {
-  return 1.0;
+export function speedAt(distance: number): number {
+  const s = Math.max(0, Math.sin(distance * 0.04));
+  return 1 + 0.45 * s * s * s; // mostly ~1.0, brief peaks to ~1.45
 }
 
 /** Theme cycles per checkpoint so variety returns without discrete levels. */

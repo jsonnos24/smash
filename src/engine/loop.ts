@@ -1,17 +1,18 @@
 export interface LoopCallbacks {
   update: (dt: number) => void;
-  render: (alpha: number) => void;
+  render: () => void;
 }
 
-const MAX_SUBSTEPS = 5;
+// Clamp very long frames (tab stalls, GC) so a single step can't jump the
+// world so far that collisions tunnel. ~33ms = 30fps floor for the sim step.
+const MAX_DT = 1 / 30;
 
 export class GameLoop {
-  private accumulator = 0;
   private lastMs: number | null = null;
   private paused = false;
   private rafId: number | null = null;
 
-  constructor(private cb: LoopCallbacks, private step = 1 / 60) {}
+  constructor(private cb: LoopCallbacks) {}
 
   get running(): boolean {
     return this.rafId !== null;
@@ -22,19 +23,12 @@ export class GameLoop {
       this.lastMs = nowMs;
       return;
     }
-    const frame = (nowMs - this.lastMs) / 1000;
+    let dt = (nowMs - this.lastMs) / 1000;
     this.lastMs = nowMs;
     if (this.paused) return;
-
-    this.accumulator += frame;
-    let steps = 0;
-    while (this.accumulator >= this.step && steps < MAX_SUBSTEPS) {
-      this.cb.update(this.step);
-      this.accumulator -= this.step;
-      steps++;
-    }
-    if (steps === MAX_SUBSTEPS) this.accumulator = 0; // shed backlog
-    this.cb.render(this.accumulator / this.step);
+    if (dt > MAX_DT) dt = MAX_DT;
+    if (dt > 0) this.cb.update(dt);
+    this.cb.render();
   }
 
   start(): void {
@@ -60,6 +54,6 @@ export class GameLoop {
 
   resume(): void {
     this.paused = false;
-    this.lastMs = null; // avoid a giant catch-up frame
+    this.lastMs = null;
   }
 }

@@ -1,28 +1,35 @@
 import { describe, it, expect, vi } from "vitest";
 import { GameLoop } from "./loop";
 
-describe("GameLoop fixed timestep", () => {
-  it("runs one update per fixed step elapsed", () => {
+describe("GameLoop variable timestep", () => {
+  it("first tick only establishes the baseline (no update)", () => {
     const update = vi.fn();
-    const render = vi.fn();
-    const loop = new GameLoop({ update, render }, 1 / 60);
+    const loop = new GameLoop({ update, render: () => {} });
     loop.tick(0);
-    loop.tick(1000 / 60); // exactly one step
-    expect(update).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledWith(1 / 60);
+    expect(update).not.toHaveBeenCalled();
   });
 
-  it("clamps to at most 5 sub-steps on a long frame", () => {
+  it("updates with the elapsed frame delta in seconds", () => {
     const update = vi.fn();
-    const loop = new GameLoop({ update, render: () => {} }, 1 / 60);
+    const loop = new GameLoop({ update, render: () => {} });
     loop.tick(0);
-    loop.tick(10000); // 10s — would be 600 steps unclamped
-    expect(update.mock.calls.length).toBeLessThanOrEqual(5);
+    loop.tick(1000 / 60);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[0][0]).toBeCloseTo(1 / 60, 4);
+  });
+
+  it("clamps a very long frame to MAX_DT", () => {
+    const update = vi.fn();
+    const loop = new GameLoop({ update, render: () => {} });
+    loop.tick(0);
+    loop.tick(10000);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[0][0]).toBeLessThanOrEqual(1 / 30 + 1e-9);
   });
 
   it("does not update while paused", () => {
     const update = vi.fn();
-    const loop = new GameLoop({ update, render: () => {} }, 1 / 60);
+    const loop = new GameLoop({ update, render: () => {} });
     loop.pause();
     loop.tick(0);
     loop.tick(1000);
