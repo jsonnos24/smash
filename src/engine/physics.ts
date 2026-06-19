@@ -7,13 +7,22 @@ export interface Ball {
   pos: Vector3;
   vel: Vector3;
   alive: boolean;
+  bounce?: boolean;
 }
 
 export interface Collider {
   id: number;
-  kind: "obstacle" | "crystal" | "door";
+  kind: "obstacle" | "crystal" | "door" | "powerup";
   box: Box3;
   damaged?: boolean;
+}
+
+/** Reflect a ball off the corridor walls/ceiling/floor (for multiball). */
+export function reflectBounds(ball: Ball, halfWidth: number, floorY: number, ceilY: number): void {
+  if (ball.pos.x > halfWidth) { ball.pos.x = halfWidth; ball.vel.x = -Math.abs(ball.vel.x); }
+  else if (ball.pos.x < -halfWidth) { ball.pos.x = -halfWidth; ball.vel.x = Math.abs(ball.vel.x); }
+  if (ball.pos.y > ceilY) { ball.pos.y = ceilY; ball.vel.y = -Math.abs(ball.vel.y); }
+  else if (ball.pos.y < floorY) { ball.pos.y = floorY; ball.vel.y = Math.abs(ball.vel.y); }
 }
 
 export function stepBall(ball: Ball, dt: number): void {

@@ -6,6 +6,7 @@ import {
   applyMiss,
   applyCrash,
   applyDoorHit,
+  applyPowerupHit,
   OBSTACLE_POINTS,
   CRYSTAL_POINTS,
 } from "./economy";
@@ -85,6 +86,16 @@ describe("applyDoorHit", () => {
   it("door refund never exceeds the cap", () => {
     const s = applyDoorHit({ ...createRunState("normal", 40), balls: 40 }, false);
     expect(s.balls).toBe(40);
+  });
+});
+
+describe("applyPowerupHit", () => {
+  it("starts the 5s timer, refunds a ball, and scores", () => {
+    const s = applyPowerupHit(createRunState("normal", 20));
+    expect(s.powerupT).toBe(5);
+    expect(s.balls).toBe(21);
+    expect(s.score).toBe(150);
+    expect(s.hitChain).toBe(1);
   });
 });
 

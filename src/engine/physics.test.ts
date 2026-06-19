@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Vector3, Box3 } from "three";
-import { stepBall, detectHit, GRAVITY, type Ball, type Collider } from "./physics";
+import { stepBall, detectHit, reflectBounds, GRAVITY, type Ball, type Collider } from "./physics";
 
 const makeBall = (pos: Vector3, vel: Vector3): Ball => ({ id: 1, pos, vel, alive: true });
 
@@ -40,5 +40,20 @@ describe("detectHit", () => {
     const prev = new Vector3(0, 0, -5);
     const ball = makeBall(new Vector3(0, 0, -25), new Vector3(0, 0, -10));
     expect(detectHit(prev, ball, cs)?.collider.id).toBe(1);
+  });
+});
+
+describe("reflectBounds", () => {
+  it("reflects off the right wall (x) inward", () => {
+    const b = { id: 1, pos: new Vector3(4, 1, -5), vel: new Vector3(3, 0, -10), alive: true };
+    reflectBounds(b, 3.5, -2, 5);
+    expect(b.pos.x).toBe(3.5);
+    expect(b.vel.x).toBeLessThan(0);
+  });
+  it("reflects off the floor (y) upward", () => {
+    const b = { id: 1, pos: new Vector3(0, -3, -5), vel: new Vector3(0, -4, -10), alive: true };
+    reflectBounds(b, 3.5, -2, 5);
+    expect(b.pos.y).toBe(-2);
+    expect(b.vel.y).toBeGreaterThan(0);
   });
 });

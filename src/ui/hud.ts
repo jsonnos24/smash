@@ -14,6 +14,7 @@ export class Hud {
         <div class="hud-score-value" data-hud="score">0</div>
         <div class="hud-streak" data-hud="streak">×1 streak</div>
       </div>
+      <div class="hud-powerup" data-hud="powerup"></div>
       <div class="hud-mode" data-hud="mode">NORMAL</div>
       <div class="hud-distance" data-hud="distance">0m · CP 0m</div>
       `;
@@ -26,6 +27,7 @@ export class Hud {
     q("reserve").style.width = `${Math.max(0, Math.min(100, (state.balls / startBalls) * 100))}%`;
     q("score").textContent = state.score.toLocaleString("en-US");
     q("streak").textContent = `×${state.streak} streak`;
+    q("powerup").textContent = state.powerupT > 0 ? `MULTIBALL ${Math.ceil(state.powerupT)}s` : "";
     q("mode").textContent = state.mode.toUpperCase();
     q("distance").textContent = `${Math.round(state.distance)}m · CP ${checkpoint}m`;
   }

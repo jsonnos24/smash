@@ -9,7 +9,7 @@ import type { Theme } from "../content/types";
 
 export interface RenderItem {
   id: number;
-  kind: "obstacle" | "crystal" | "ball" | "door";
+  kind: "obstacle" | "crystal" | "ball" | "door" | "powerup";
   pos: Vector3;
   size: number;
   damaged?: boolean;
@@ -203,6 +203,12 @@ export class SceneManager {
 
   private makeMesh(item: RenderItem): Mesh {
     const c = THEME_COLORS[this.theme];
+    if (item.kind === "powerup") {
+      return new Mesh(
+        new OctahedronGeometry(item.size),
+        new MeshStandardMaterial({ color: 0xff5cc8, emissive: 0xff5cc8, emissiveIntensity: 0.8, transparent: true, opacity: 0.9 }),
+      );
+    }
     if (item.kind === "crystal") {
       return new Mesh(
         new OctahedronGeometry(item.size),

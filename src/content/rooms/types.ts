@@ -6,7 +6,7 @@ export interface Placement {
   z: number;
 }
 
-export type EntityKind = "obstacle" | "crystal";
+export type EntityKind = "obstacle" | "crystal" | "powerup";
 
 export interface RoomEntity extends Placement {
   kind: EntityKind;

@@ -1,8 +1,8 @@
 import { Box3, PerspectiveCamera, Vector3 } from "three";
 import { createRunState, type Mode, type RunState } from "./state";
-import { applyObstacleHit, applyCrystalHit, applyMiss, applyCrash, applyDoorHit } from "./economy";
+import { applyObstacleHit, applyCrystalHit, applyMiss, applyCrash, applyDoorHit, applyPowerupHit } from "./economy";
 import { createThrow, type ScreenPoint } from "./throw";
-import { stepBall, detectHit, type Ball, type Collider } from "../engine/physics";
+import { stepBall, detectHit, reflectBounds, type Ball, type Collider } from "../engine/physics";
 import { makeRng, pickRoom } from "../generator/levelBuilder";
 import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP } from "../content/endless";
 import type { RoomTemplate } from "../content/rooms";
@@ -11,16 +11,20 @@ const BASE_SPEED = 9;
 const THROW_SPEED = 45;
 const ACTIVE_NEAR = 5;
 const ACTIVE_FAR = -60;
+const BOUNCE_HALF_WIDTH = 3.5;
+const BOUNCE_FLOOR = -2;
+const BOUNCE_CEIL = 5;
+const FAR_RETIRE_Z = -150;
 
 export interface SessionEvents {
-  onShatter?: (kind: "obstacle" | "crystal" | "door", at: Vector3) => void;
+  onShatter?: (kind: "obstacle" | "crystal" | "door" | "powerup", at: Vector3) => void;
   onCrash?: () => void;
   onCheckpoint?: (distance: number) => void;
 }
 
 interface WorldEntity {
   id: number;
-  kind: "obstacle" | "crystal" | "door";
+  kind: "obstacle" | "crystal" | "door" | "powerup";
   baseZ: number;
   x: number;
   y: number;
@@ -132,11 +136,22 @@ export class Session {
     const status =
       this._state.mode === "normal" && balls <= 0 ? "ended" : this._state.status;
     this._state = { ...this._state, balls, status };
-    this.balls.push(createThrow(this.nextId++, p, this.camera, THROW_SPEED));
+    if (this._state.powerupT > 0) {
+      for (const dx of [-0.07, 0, 0.07]) {
+        const b = createThrow(this.nextId++, { nx: p.nx + dx, ny: p.ny }, this.camera, THROW_SPEED);
+        b.bounce = true;
+        this.balls.push(b);
+      }
+    } else {
+      this.balls.push(createThrow(this.nextId++, p, this.camera, THROW_SPEED));
+    }
   }
 
   update(dt: number): void {
     if (this._state.status !== "playing") return;
+    if (this._state.powerupT > 0) {
+      this._state = { ...this._state, powerupT: Math.max(0, this._state.powerupT - dt) };
+    }
     const newDistance = this._state.distance + BASE_SPEED * speedAt(this._state.distance) * dt;
     this._state = { ...this._state, distance: newDistance };
     this.generateAhead();
@@ -147,6 +162,7 @@ export class Session {
     for (const ball of this.balls) {
       const prev = ball.pos.clone();
       stepBall(ball, dt);
+      if (ball.bounce) reflectBounds(ball, BOUNCE_HALF_WIDTH, BOUNCE_FLOOR, BOUNCE_CEIL);
       const hit = detectHit(prev, ball, colliders);
       if (hit) {
         this.resolveHit(hit.collider);
@@ -154,6 +170,8 @@ export class Session {
       } else if (ball.pos.z > 5 || ball.pos.y < -5) {
         this._state = applyMiss(this._state);
         ball.alive = false;
+      } else if (ball.pos.z < FAR_RETIRE_Z) {
+        ball.alive = false; // flew the whole corridor (common for bounced multiballs)
       }
       if (ball.alive) surviving.push(ball);
     }
@@ -163,8 +181,14 @@ export class Session {
       if (e.consumed) continue;
       if (this.worldZ(e.baseZ) >= 0) {
         e.consumed = true;
+        const at = new Vector3(e.x, e.y, this.worldZ(e.baseZ));
+        if (e.kind === "powerup") {
+          this._state = applyPowerupHit(this._state); // crashing a powerup is safe + grants it
+          this.events.onShatter?.("powerup", at);
+          continue;
+        }
         this._state = applyCrash(this._state);
-        this.events.onShatter?.(e.kind === "crystal" ? "crystal" : "obstacle", new Vector3(e.x, e.y, this.worldZ(e.baseZ)));
+        this.events.onShatter?.(e.kind === "crystal" ? "crystal" : "obstacle", at);
         this.events.onCrash?.();
       }
     }
@@ -188,6 +212,12 @@ export class Session {
       if (broke) e.consumed = true;
       this._state = applyDoorHit(this._state, broke);
       this.events.onShatter?.("obstacle", at);
+      return;
+    }
+    if (e.kind === "powerup") {
+      e.consumed = true;
+      this._state = applyPowerupHit(this._state);
+      this.events.onShatter?.("powerup", at);
       return;
     }
     e.consumed = true;

@@ -21,4 +21,16 @@ describe("Hud", () => {
     hud.update({ ...createRunState("normal", 20), balls: 5 }, 20, 0);
     expect((root.querySelector("[data-hud=reserve]") as HTMLElement).style.width).toBe("25%");
   });
+  it("shows MULTIBALL timer when powerupT > 0", () => {
+    const root = document.createElement("div");
+    const hud = new Hud(root);
+    hud.update({ ...createRunState("normal", 20), powerupT: 3 }, 20, 0);
+    expect(root.querySelector("[data-hud=powerup]")?.textContent).toContain("MULTIBALL");
+  });
+  it("hides MULTIBALL indicator when powerupT is 0", () => {
+    const root = document.createElement("div");
+    const hud = new Hud(root);
+    hud.update({ ...createRunState("normal", 20), powerupT: 0 }, 20, 0);
+    expect(root.querySelector("[data-hud=powerup]")?.textContent).toBe("");
+  });
 });

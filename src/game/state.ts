@@ -10,6 +10,7 @@ export interface RunState {
   distance: number;
   roomIndex: number;
   status: RunStatus;
+  powerupT: number;
 }
 
 export function streakMultiplier(hitChain: number): number {
@@ -26,5 +27,6 @@ export function createRunState(mode: Mode, startBalls: number): RunState {
     distance: 0,
     roomIndex: 0,
     status: "playing",
+    powerupT: 0,
   };
 }

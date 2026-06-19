@@ -13,6 +13,7 @@ describe("createRunState", () => {
       distance: 0,
       roomIndex: 0,
       status: "playing",
+      powerupT: 0,
     });
   });
 });

@@ -133,8 +133,9 @@ function bootstrap(): void {
     audio.playMusic(theme);
     session = new Session(ROOMS, mode, scene.camera, Date.now() & 0xffff, {
       onShatter: (kind, at) => {
-        shatter.burst(at, kind === "crystal" ? 0x7ffcd9 : 0x4fb3a3);
-        audio.playSfx(kind === "crystal" ? "shatterCrystal" : "shatterGlass");
+        const color = kind === "crystal" ? 0x7ffcd9 : kind === "powerup" ? 0xff5cc8 : 0x4fb3a3;
+        shatter.burst(at, color);
+        audio.playSfx(kind === "obstacle" ? "shatterGlass" : "shatterCrystal");
       },
       onCrash: () => scene.shake(0.9),
       onCheckpoint: (cp) => {
