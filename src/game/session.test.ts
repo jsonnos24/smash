@@ -88,4 +88,19 @@ describe("Session", () => {
     // a center throw flies forward (−Z), so z decreases from its spawn point
     expect(s.liveBalls[0].pos.z).toBeLessThan(startZ);
   });
+
+  it("throwing a ball costs one from the reserve in Normal", () => {
+    const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
+    const before = s.state.balls;
+    s.throwBall({ nx: 0, ny: 0 });
+    expect(s.state.balls).toBe(before - 1);
+    expect(s.liveBalls.length).toBe(1);
+  });
+
+  it("Casual throwing never drops the reserve below 1 and always fires", () => {
+    const s = new Session(LEVELS[0], ROOMS, "casual", cam(), 1);
+    for (let i = 0; i < 100; i++) s.throwBall({ nx: 0, ny: 0 });
+    expect(s.state.balls).toBeGreaterThanOrEqual(1);
+    expect(s.liveBalls.length).toBe(100);
+  });
 });

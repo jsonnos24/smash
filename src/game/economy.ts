@@ -6,10 +6,6 @@ export const CRYSTAL_POINTS = 100;
 
 export const COLLISION_COST = 1;
 
-export function obstacleCost(_level: LevelDef): number {
-  return 1;
-}
-
 export function crystalRefill(_level: LevelDef): number {
   return 1;
 }
@@ -23,17 +19,8 @@ function scoreHit(state: RunState, points: number): Pick<RunState, "score" | "hi
   };
 }
 
-export function applyObstacleHit(state: RunState, level: LevelDef): RunState {
-  const scored = scoreHit(state, OBSTACLE_POINTS);
-  let balls = state.balls - obstacleCost(level);
-  let status = state.status;
-  if (state.mode === "casual") {
-    balls = Math.max(1, balls);
-  } else if (balls <= 0) {
-    balls = 0;
-    status = "ended";
-  }
-  return { ...state, ...scored, balls, status };
+export function applyObstacleHit(state: RunState, _level: LevelDef): RunState {
+  return { ...state, ...scoreHit(state, OBSTACLE_POINTS) };
 }
 
 export function applyCrystalHit(state: RunState, level: LevelDef): RunState {

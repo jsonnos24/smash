@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createRunState } from "./state";
 import {
-  obstacleCost,
   crystalRefill,
   applyObstacleHit,
   applyCrystalHit,
@@ -16,10 +15,6 @@ const L1 = LEVELS[0]; // band [1,2], veryHigh
 const L6 = LEVELS[5]; // band [6.8,8.5], lean
 
 describe("cost & refill scaling", () => {
-  it("obstacle cost is flat 1", () => {
-    expect(obstacleCost(L1)).toBe(1);
-    expect(obstacleCost(L6)).toBe(1);
-  });
   it("crystal refill is flat 1", () => {
     expect(crystalRefill(L1)).toBe(1);
     expect(crystalRefill(L6)).toBe(1);
@@ -27,25 +22,11 @@ describe("cost & refill scaling", () => {
 });
 
 describe("applyObstacleHit", () => {
-  it("scores, builds streak, and spends balls", () => {
+  it("scores and builds streak without costing balls", () => {
     const s = applyObstacleHit(createRunState("normal", 25), L1);
     expect(s.score).toBe(OBSTACLE_POINTS * 1);
     expect(s.hitChain).toBe(1);
-    expect(s.balls).toBe(24);
-    expect(s.status).toBe("playing");
-  });
-
-  it("ends the run in Normal mode when balls reach zero", () => {
-    const low = { ...createRunState("normal", 1), balls: 1 };
-    const s = applyObstacleHit(low, L1); // cost 1
-    expect(s.balls).toBe(0);
-    expect(s.status).toBe("ended");
-  });
-
-  it("clamps to 1 ball and never ends in Casual mode", () => {
-    const low = { ...createRunState("casual", 1), balls: 1 };
-    const s = applyObstacleHit(low, L1); // cost 1
-    expect(s.balls).toBe(1);
+    expect(s.balls).toBe(25);
     expect(s.status).toBe("playing");
   });
 });

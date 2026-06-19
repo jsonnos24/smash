@@ -104,6 +104,14 @@ export class Session {
 
   throwBall(p: ScreenPoint): void {
     if (this._state.status !== "playing") return;
+    if (this._state.balls <= 0) return;
+    const balls =
+      this._state.mode === "casual"
+        ? Math.max(1, this._state.balls - 1)
+        : this._state.balls - 1;
+    const status =
+      this._state.mode === "normal" && balls <= 0 ? "ended" : this._state.status;
+    this._state = { ...this._state, balls, status };
     this.balls.push(createThrow(this.nextId++, p, this.camera, THROW_SPEED));
   }
 
