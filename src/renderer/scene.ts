@@ -222,6 +222,27 @@ export class SceneManager {
     );
   }
 
+  private makeCracks(size: number): LineSegments {
+    const z = 0.18; // just in front of the panel's front face
+    const pts: number[] = [];
+    const spokes = 6;
+    for (let i = 0; i < spokes; i++) {
+      const a = (i / spokes) * Math.PI * 2 + 0.3;
+      const midR = size * 0.5;
+      const endR = size * 0.95;
+      const mx = Math.cos(a) * midR + (Math.random() - 0.5) * size * 0.25;
+      const my = Math.sin(a) * midR + (Math.random() - 0.5) * size * 0.25;
+      const ex = Math.cos(a + 0.25) * endR;
+      const ey = Math.sin(a + 0.25) * endR;
+      // center → jagged mid, then mid → edge (two segments per spoke)
+      pts.push(0, 0, z, mx, my, z, mx, my, z, ex, ey, z);
+    }
+    const g = new BufferGeometry();
+    g.setAttribute("position", new Float32BufferAttribute(pts, 3));
+    const m = new LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+    return new LineSegments(g, m);
+  }
+
   sync(items: RenderItem[]): void {
     const seen = new Set<number>();
     for (const item of items) {
@@ -233,12 +254,18 @@ export class SceneManager {
         this.scene.add(mesh);
       }
       mesh.position.copy(item.pos);
-      if (item.kind === "door") {
-        (mesh.material as MeshStandardMaterial).emissive.setHex(item.damaged ? 0x7a1a1a : 0x5a3d00);
+      if (item.kind === "door" && item.damaged && !mesh.userData.cracked) {
+        mesh.add(this.makeCracks(item.size));
+        mesh.userData.cracked = true;
       }
     }
     for (const [id, mesh] of this.meshes) {
       if (!seen.has(id)) {
+        for (const child of mesh.children) {
+          const ls = child as LineSegments;
+          ls.geometry.dispose();
+          (ls.material as LineBasicMaterial).dispose();
+        }
         this.scene.remove(mesh);
         mesh.geometry.dispose();
         (mesh.material as MeshStandardMaterial).dispose();
