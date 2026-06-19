@@ -74,4 +74,20 @@ describe("Session (endless)", () => {
     s.update(0.1);
     expect(s.liveBalls[0]?.pos.z ?? Infinity).toBeLessThan(startZ);
   });
+
+  it("crossing a checkpoint grants +5 balls", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    let jumped = false;
+    for (let i = 0; i < 6000 && !jumped; i++) {
+      const cpBefore = s.checkpoint;
+      const ballsBefore = s.state.balls;
+      s.update(0.1);
+      if (s.checkpoint > cpBefore) {
+        // +5 bonus, minus at most one crash that same frame
+        expect(s.state.balls).toBeGreaterThanOrEqual(ballsBefore + 4);
+        jumped = true;
+      }
+    }
+    expect(jumped).toBe(true);
+  });
 });

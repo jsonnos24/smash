@@ -146,6 +146,7 @@ export class Session {
     const cp = Math.floor(newDistance / CHECKPOINT_SPACING) * CHECKPOINT_SPACING;
     if (cp > this._checkpoint) {
       this._checkpoint = cp;
+      this._state = { ...this._state, balls: this._state.balls + 5 };
       this.events.onCheckpoint?.(cp);
     }
 

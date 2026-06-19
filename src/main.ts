@@ -78,6 +78,14 @@ function bootstrap(): void {
     render: () => scene.render(),
   });
 
+  const pauseBtn = document.createElement("button");
+  pauseBtn.textContent = "⏸";
+  pauseBtn.setAttribute("aria-label", "Pause");
+  pauseBtn.style.cssText =
+    "position:absolute;bottom:12px;right:14px;z-index:1;pointer-events:auto;font-size:20px;line-height:1;background:rgba(0,0,0,.35);color:#dffff5;border:1px solid #7ffcd9;border-radius:8px;padding:4px 10px;cursor:pointer;font-family:system-ui;";
+  pauseBtn.addEventListener("click", () => pauseGame());
+  app.appendChild(pauseBtn);
+
   const menus = new Menus(app, save, {
     onStart: (mode) => startRun(mode),
     onResume: () => {
@@ -96,6 +104,13 @@ function bootstrap(): void {
       loop.pause();
     },
   });
+
+  function pauseGame(): void {
+    if (session && session.state.status === "playing") {
+      loop.pause();
+      menus.showPause();
+    }
+  }
 
   function endRun(): void {
     if (!session) return;
@@ -137,6 +152,10 @@ function bootstrap(): void {
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && session) { loop.pause(); menus.showPause(); }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" || e.key === "p" || e.key === "P") pauseGame();
   });
 
   menus.showMain();

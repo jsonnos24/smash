@@ -19,7 +19,7 @@ export function applyObstacleHit(state: RunState): RunState {
 }
 
 export function applyCrystalHit(state: RunState): RunState {
-  return { ...state, ...scoreHit(state, CRYSTAL_POINTS), balls: state.balls + 1 };
+  return { ...state, ...scoreHit(state, CRYSTAL_POINTS), balls: state.balls + 3 };
 }
 
 /** Crashing into any unbroken object: lose a ball, break the streak, no score. */
