@@ -100,4 +100,11 @@ describe("Session (endless)", () => {
     }
     expect(sawDoor).toBe(true);
   });
+
+  it("can start at a given distance for testing", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1, {}, 800);
+    expect(s.state.distance).toBe(800);
+    expect(s.checkpoint).toBe(800);
+    expect(s.colliders().length).toBeGreaterThan(0); // content generated around the start point
+  });
 });

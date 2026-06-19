@@ -45,9 +45,15 @@ export class Session {
     private camera: PerspectiveCamera,
     seed: number,
     private events: SessionEvents = {},
+    startDistance = 0,
   ) {
     this.rng = makeRng(seed);
     this._state = createRunState(mode, START_BALLS);
+    if (startDistance > 0) {
+      this._state = { ...this._state, distance: startDistance };
+      this.frontZ = startDistance;
+      this._checkpoint = Math.floor(startDistance / CHECKPOINT_SPACING) * CHECKPOINT_SPACING;
+    }
     this.generateAhead();
   }
 

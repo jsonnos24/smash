@@ -88,7 +88,7 @@ function bootstrap(): void {
   app.appendChild(pauseBtn);
 
   const menus = new Menus(app, save, {
-    onStart: (mode) => startRun(mode),
+    onStart: (mode, startDistance) => startRun(mode, startDistance),
     onResume: () => {
       menus.hide();
       loop.resume();
@@ -124,10 +124,11 @@ function bootstrap(): void {
     menus.showResults({ distance: Math.round(s.state.distance), best: save.bestDistance });
   }
 
-  function startRun(mode: Mode): void {
+  function startRun(mode: Mode, startDistance = 0): void {
     lastMode = mode;
     audio.unlock();
-    let theme = themeAt(0);
+    const cpIndex = Math.floor(startDistance / CHECKPOINT_SPACING);
+    let theme = themeAt(cpIndex);
     scene.setTheme(theme);
     audio.playMusic(theme);
     session = new Session(ROOMS, mode, scene.camera, Date.now() & 0xffff, {
@@ -141,7 +142,7 @@ function bootstrap(): void {
         scene.setTheme(theme);
         audio.playMusic(theme);
       },
-    });
+    }, startDistance);
     menus.hide();
     loop.resume();
     if (!loop.running) loop.start();

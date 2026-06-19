@@ -1,8 +1,9 @@
 import type { Mode } from "../game/state";
 import { type SaveData, saveSave } from "../persistence/save";
+import { themeAt, difficultyAt, CHECKPOINT_SPACING } from "../content/endless";
 
 export interface MenuCallbacks {
-  onStart: (mode: Mode) => void;
+  onStart: (mode: Mode, startDistance?: number) => void;
   onResume: () => void;
   onRetry: () => void;
   onMenu: () => void;
@@ -59,6 +60,7 @@ export class Menus {
     this.overlay.appendChild(modeBtn);
 
     this.overlay.appendChild(this.button("Play", () => this.cb.onStart(this._mode), { "data-action": "play" }));
+    this.overlay.appendChild(this.button("Test Levels (dev)", () => this.showLevels(), { "data-action": "testlevels" }));
 
     const best = document.createElement("p");
     best.textContent = `Best: ${this.save.bestDistance.toLocaleString("en-US")}m`;
@@ -86,6 +88,29 @@ export class Menus {
     this.overlay.appendChild(p);
     this.overlay.appendChild(this.button("Play Again", () => this.cb.onRetry(), { "data-action": "retry" }));
     this.overlay.appendChild(this.button("Main Menu", () => this.cb.onMenu(), { "data-action": "menu" }));
+  }
+
+  private prettyTheme(t: string): string {
+    if (t === "crystalCavern") return "Crystal Cavern";
+    if (t === "neonTunnel") return "Neon Tunnel";
+    return "Glass Chapel";
+  }
+
+  showLevels(): void {
+    this.overlay.replaceChildren();
+    this.overlay.style.display = "flex";
+    const h = document.createElement("h2");
+    h.textContent = "Test Levels (dev)";
+    this.overlay.appendChild(h);
+    const dists = [0, 420, 820, 1220, 1640, 2040, 2440, 2840, 3240];
+    for (const d of dists) {
+      const cp = Math.floor(d / CHECKPOINT_SPACING);
+      const label = `${this.prettyTheme(themeAt(cp))} · diff ${Math.round(difficultyAt(d))}/9 · ${d}m`;
+      this.overlay.appendChild(
+        this.button(label, () => this.cb.onStart(this._mode, d), { "data-test": String(d) }),
+      );
+    }
+    this.overlay.appendChild(this.button("Back", () => this.showMain()));
   }
 
   hide(): void {
