@@ -23,12 +23,16 @@ describe("applyCrystalHit", () => {
   it("scores and refills in Normal", () => {
     const s = applyCrystalHit(createRunState("normal", 10));
     expect(s.score).toBe(CRYSTAL_POINTS * 1);
-    expect(s.balls).toBe(13); // +3
+    expect(s.balls).toBe(12); // +2
     expect(s.hitChain).toBe(1);
   });
-  it("refills flat 3 in Casual", () => {
+  it("refills flat 2 in Casual", () => {
     const s = applyCrystalHit(createRunState("casual", 10));
-    expect(s.balls).toBe(13); // +3
+    expect(s.balls).toBe(12); // +2
+  });
+  it("crystal gain never exceeds the cap", () => {
+    const s = { ...createRunState("normal", 24), balls: 24 };
+    expect(applyCrystalHit(s).balls).toBe(25);
   });
 });
 

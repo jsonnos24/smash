@@ -1,4 +1,5 @@
 import { type RunState, streakMultiplier } from "./state";
+import { MAX_BALLS } from "../content/endless";
 
 export const OBSTACLE_POINTS = 50;
 export const CRYSTAL_POINTS = 100;
@@ -19,7 +20,7 @@ export function applyObstacleHit(state: RunState): RunState {
 }
 
 export function applyCrystalHit(state: RunState): RunState {
-  return { ...state, ...scoreHit(state, CRYSTAL_POINTS), balls: state.balls + 3 };
+  return { ...state, ...scoreHit(state, CRYSTAL_POINTS), balls: Math.min(MAX_BALLS, state.balls + 2) };
 }
 
 /** Crashing into any unbroken object: lose a ball, break the streak, no score. */

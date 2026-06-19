@@ -4,7 +4,7 @@ import { applyObstacleHit, applyCrystalHit, applyMiss, applyCrash } from "./econ
 import { createThrow, type ScreenPoint } from "./throw";
 import { stepBall, detectHit, type Ball, type Collider } from "../engine/physics";
 import { makeRng, pickRoom } from "../generator/levelBuilder";
-import { difficultyAt, speedAt, START_BALLS, CHECKPOINT_SPACING, LOOKAHEAD } from "../content/endless";
+import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD } from "../content/endless";
 import type { RoomTemplate } from "../content/rooms";
 
 const BASE_SPEED = 9;
@@ -146,7 +146,7 @@ export class Session {
     const cp = Math.floor(newDistance / CHECKPOINT_SPACING) * CHECKPOINT_SPACING;
     if (cp > this._checkpoint) {
       this._checkpoint = cp;
-      this._state = { ...this._state, balls: this._state.balls + 5 };
+      this._state = { ...this._state, balls: Math.min(MAX_BALLS, this._state.balls + 3) };
       this.events.onCheckpoint?.(cp);
     }
 
