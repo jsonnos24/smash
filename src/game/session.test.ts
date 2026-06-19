@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
-import { Session } from "./session";
+import { Session, slideX } from "./session";
 import { ROOMS } from "../content/rooms";
 import { START_BALLS, CHECKPOINT_SPACING } from "../content/endless";
 
@@ -106,5 +106,13 @@ describe("Session (endless)", () => {
     expect(s.state.distance).toBe(800);
     expect(s.checkpoint).toBe(800);
     expect(s.colliders().length).toBeGreaterThan(0); // content generated around the start point
+  });
+});
+
+describe("slideX", () => {
+  it("oscillates around the base x", () => {
+    expect(slideX(0, 0, 0, 2, 1.6)).toBeCloseTo(0, 6); // sin(0)=0
+    const v = slideX(1, 0, Math.PI / (2 * 1.6), 2, 1.6); // sin(pi/2)=1 → 1 + 2
+    expect(v).toBeCloseTo(3, 5);
   });
 });

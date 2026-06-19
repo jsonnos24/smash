@@ -6,6 +6,10 @@ const crystal = (x: number, y: number, z: number, size = 0.6) =>
   ({ kind: "crystal" as const, x, y, z, size });
 const powerup = (x: number, y: number, z: number, size = 0.7) =>
   ({ kind: "powerup" as const, x, y, z, size });
+const slider = (x: number, y: number, z: number, size = 1) =>
+  ({ kind: "obstacle" as const, x, y, z, size, motion: "slide" as const });
+const windmill = (x: number, y: number, z: number, size = 1.1) =>
+  ({ kind: "obstacle" as const, x, y, z, size, motion: "spin" as const });
 
 export const ROOMS: RoomTemplate[] = [
   // ---- Crystal Cavern (easy → hard) ----
@@ -60,4 +64,12 @@ export const ROOMS: RoomTemplate[] = [
     entities: [obstacle(-2.4, 0.5, 18), obstacle(0, 3.8, 18), obstacle(2.4, 0.5, 18),
                obstacle(-2.4, 4.0, 46), obstacle(0, 1.7, 46), obstacle(2.4, 4.0, 46),
                crystal(0, 0.5, 70), crystal(-2.2, 3.8, 30), crystal(2.2, 3.8, 30)] },
+
+  // ---- Hazard rooms ----
+  { id: "nt-slide-1", theme: "neonTunnel", difficulty: 5, length: 70,
+    entities: [slider(0, 1.8, 20), slider(-1.0, 3.2, 40), slider(1.0, 0.7, 55),
+               crystal(-2.2, 0.5, 10), crystal(2.2, 3.5, 65)] },
+  { id: "cc-windmill-1", theme: "crystalCavern", difficulty: 6, length: 75,
+    entities: [windmill(-1.6, 2.0, 25), windmill(1.6, 2.0, 50),
+               crystal(0, 0.6, 10), crystal(0, 3.5, 65)] },
 ];

@@ -13,6 +13,7 @@ export interface RenderItem {
   pos: Vector3;
   size: number;
   damaged?: boolean;
+  spin?: number;
 }
 
 // Corridor geometry constants
@@ -227,6 +228,13 @@ export class SceneManager {
         new MeshStandardMaterial({ color: 0xffc04d, transparent: true, opacity: 0.9, metalness: 0.5, roughness: 0.3, emissive: 0x5a3d00, emissiveIntensity: 0.35 }),
       );
     }
+    if (item.spin !== undefined) {
+      const mat = new MeshStandardMaterial({ color: c.glass, transparent: true, opacity: 0.85, metalness: 0.2, roughness: 0.1, emissive: c.glass, emissiveIntensity: 0.2 });
+      const hub = new Mesh(new BoxGeometry(item.size * 0.5, item.size * 0.5, 0.2), mat);
+      hub.add(new Mesh(new BoxGeometry(item.size * 2.6, item.size * 0.5, 0.18), mat));
+      hub.add(new Mesh(new BoxGeometry(item.size * 0.5, item.size * 2.6, 0.18), mat));
+      return hub;
+    }
     return new Mesh(
       new BoxGeometry(item.size * 2, item.size * 2, 0.2),
       new MeshStandardMaterial({ color: c.glass, transparent: true, opacity: 0.8, metalness: 0.1, roughness: 0.1, emissive: c.glass, emissiveIntensity: 0.15 }),
@@ -265,6 +273,7 @@ export class SceneManager {
         this.scene.add(mesh);
       }
       mesh.position.copy(item.pos);
+      if (item.spin !== undefined) mesh.rotation.z = item.spin;
       if (item.kind === "door" && item.damaged && !mesh.userData.cracked) {
         mesh.add(this.makeCracks(item.size));
         mesh.userData.cracked = true;

@@ -53,6 +53,7 @@ function bootstrap(): void {
       pos: c.box.getCenter(new Vector3()),
       size: (c.box.max.x - c.box.min.x) / 2,
       damaged: c.damaged,
+      spin: c.spin,
     }));
     for (const ball of session.liveBalls) {
       items.push({

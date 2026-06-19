@@ -11,6 +11,7 @@ export type EntityKind = "obstacle" | "crystal" | "powerup";
 export interface RoomEntity extends Placement {
   kind: EntityKind;
   size: number;
+  motion?: "slide" | "spin";
 }
 
 export interface RoomTemplate {

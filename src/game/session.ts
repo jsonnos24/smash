@@ -15,6 +15,13 @@ const BOUNCE_HALF_WIDTH = 3.5;
 const BOUNCE_FLOOR = -2;
 const BOUNCE_CEIL = 5;
 const FAR_RETIRE_Z = -150;
+const SLIDE_AMP = 2.0;
+const SLIDE_SPEED = 1.6;
+const SPIN_SPEED = 2.5;
+
+export function slideX(baseX: number, baseZ: number, t: number, amp = SLIDE_AMP, speed = SLIDE_SPEED): number {
+  return baseX + amp * Math.sin(t * speed + baseZ);
+}
 
 export interface SessionEvents {
   onShatter?: (kind: "obstacle" | "crystal" | "door" | "powerup", at: Vector3) => void;
@@ -31,6 +38,7 @@ interface WorldEntity {
   size: number;
   hits: number;
   consumed: boolean;
+  motion?: "slide" | "spin";
 }
 
 export class Session {
@@ -42,6 +50,7 @@ export class Session {
   private frontZ = 0;
   private rng: () => number;
   private _checkpoint = 0;
+  private _t = 0;
 
   constructor(
     private rooms: RoomTemplate[],
@@ -103,6 +112,7 @@ export class Session {
           size: e.size,
           hits: 1,
           consumed: false,
+          motion: e.motion,
         });
       }
       this.frontZ += tmpl.length;
@@ -117,15 +127,21 @@ export class Session {
       if (e.consumed) continue;
       const z = this.worldZ(e.baseZ);
       if (z < ACTIVE_FAR || z > ACTIVE_NEAR) continue;
+      const ex = this.currentX(e);
       const h = e.size;
       out.push({
         id: e.id,
         kind: e.kind,
-        box: new Box3(new Vector3(e.x - h, e.y - h, z - h), new Vector3(e.x + h, e.y + h, z + h)),
+        box: new Box3(new Vector3(ex - h, e.y - h, z - h), new Vector3(ex + h, e.y + h, z + h)),
         damaged: e.kind === "door" && e.hits < DOOR_HITS,
+        spin: e.motion === "spin" ? this._t * SPIN_SPEED : undefined,
       });
     }
     return out;
+  }
+
+  private currentX(e: WorldEntity): number {
+    return e.motion === "slide" ? slideX(e.x, e.baseZ, this._t) : e.x;
   }
 
   throwBall(p: ScreenPoint): void {
@@ -152,6 +168,7 @@ export class Session {
     if (this._state.powerupT > 0) {
       this._state = { ...this._state, powerupT: Math.max(0, this._state.powerupT - dt) };
     }
+    this._t += dt;
     const newDistance = this._state.distance + BASE_SPEED * speedAt(this._state.distance) * dt;
     this._state = { ...this._state, distance: newDistance };
     this.generateAhead();
@@ -205,7 +222,7 @@ export class Session {
   private resolveHit(collider: Collider): void {
     const e = this.entities.find((x) => x.id === collider.id);
     if (!e || e.consumed) return;
-    const at = new Vector3(e.x, e.y, this.worldZ(e.baseZ));
+    const at = new Vector3(this.currentX(e), e.y, this.worldZ(e.baseZ));
     if (e.kind === "door") {
       e.hits -= 1;
       const broke = e.hits <= 0;

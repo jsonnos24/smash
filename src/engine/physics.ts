@@ -15,6 +15,7 @@ export interface Collider {
   kind: "obstacle" | "crystal" | "door" | "powerup";
   box: Box3;
   damaged?: boolean;
+  spin?: number;
 }
 
 /** Reflect a ball off the corridor walls/ceiling/floor (for multiball). */
