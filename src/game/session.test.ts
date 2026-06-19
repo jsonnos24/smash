@@ -70,6 +70,13 @@ describe("Session", () => {
     expect(s.state.balls).toBeLessThan(start);
   });
 
+  it("an uncollected crystal that reaches the player also costs balls", () => {
+    const s = new Session(LEVELS[0], ROOMS, "normal", cam(), 1);
+    const start = s.state.balls;
+    for (let i = 0; i < 2000 && s.state.status === "playing"; i++) s.update(0.05);
+    expect(s.state.balls).toBeLessThan(start);
+  });
+
   it("exposes live thrown balls and advances them for rendering", () => {
     const s = new Session(LEVELS[0], ROOMS, "casual", cam(), 1);
     expect(s.liveBalls.length).toBe(0);

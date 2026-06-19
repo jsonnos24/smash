@@ -1,22 +1,17 @@
 import { type RunState, streakMultiplier } from "./state";
-import type { Generosity, LevelDef } from "../content/types";
+import type { LevelDef } from "../content/types";
 
 export const OBSTACLE_POINTS = 50;
 export const CRYSTAL_POINTS = 100;
 
-const REFILL_BY_GENEROSITY: Record<Generosity, number> = {
-  veryHigh: 5,
-  high: 4,
-  medium: 3,
-  lean: 2,
-};
+export const COLLISION_COST = 1;
 
-export function obstacleCost(level: LevelDef): number {
-  return Math.max(1, Math.round(level.band[1] / 2));
+export function obstacleCost(_level: LevelDef): number {
+  return 1;
 }
 
-export function crystalRefill(level: LevelDef): number {
-  return REFILL_BY_GENEROSITY[level.crystalGenerosity];
+export function crystalRefill(_level: LevelDef): number {
+  return 1;
 }
 
 function scoreHit(state: RunState, points: number): Pick<RunState, "score" | "hitChain" | "streak"> {
@@ -43,13 +38,12 @@ export function applyObstacleHit(state: RunState, level: LevelDef): RunState {
 
 export function applyCrystalHit(state: RunState, level: LevelDef): RunState {
   const scored = scoreHit(state, CRYSTAL_POINTS);
-  const refill = crystalRefill(level) + (state.mode === "casual" ? 1 : 0);
-  return { ...state, ...scored, balls: state.balls + refill };
+  return { ...state, ...scored, balls: state.balls + crystalRefill(level) };
 }
 
-export function applyObstacleCollision(state: RunState, level: LevelDef): RunState {
-  // Crashing into an unbroken obstacle: lose balls, break the streak, no score.
-  let balls = state.balls - obstacleCost(level);
+/** Crashing into any unbroken object: lose a ball, break the streak, no score. */
+export function applyCrash(state: RunState): RunState {
+  let balls = state.balls - COLLISION_COST;
   let status = state.status;
   if (state.mode === "casual") {
     balls = Math.max(1, balls);

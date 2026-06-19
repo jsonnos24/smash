@@ -6,7 +6,7 @@ import {
   applyObstacleHit,
   applyCrystalHit,
   applyMiss,
-  applyObstacleCollision,
+  applyCrash,
   OBSTACLE_POINTS,
   CRYSTAL_POINTS,
 } from "./economy";
@@ -16,13 +16,13 @@ const L1 = LEVELS[0]; // band [1,2], veryHigh
 const L6 = LEVELS[5]; // band [6.8,8.5], lean
 
 describe("cost & refill scaling", () => {
-  it("obstacle cost is gentle early, higher late", () => {
-    expect(obstacleCost(L1)).toBe(1); // round(2/2)=1
-    expect(obstacleCost(L6)).toBe(4); // round(8.5/2)=4
+  it("obstacle cost is flat 1", () => {
+    expect(obstacleCost(L1)).toBe(1);
+    expect(obstacleCost(L6)).toBe(1);
   });
-  it("crystal refill scales with generosity", () => {
-    expect(crystalRefill(L1)).toBe(5); // veryHigh
-    expect(crystalRefill(L6)).toBe(2); // lean
+  it("crystal refill is flat 1", () => {
+    expect(crystalRefill(L1)).toBe(1);
+    expect(crystalRefill(L6)).toBe(1);
   });
 });
 
@@ -36,15 +36,15 @@ describe("applyObstacleHit", () => {
   });
 
   it("ends the run in Normal mode when balls reach zero", () => {
-    const low = { ...createRunState("normal", 3), balls: 3 };
-    const s = applyObstacleHit(low, L6); // cost 4
+    const low = { ...createRunState("normal", 1), balls: 1 };
+    const s = applyObstacleHit(low, L1); // cost 1
     expect(s.balls).toBe(0);
     expect(s.status).toBe("ended");
   });
 
   it("clamps to 1 ball and never ends in Casual mode", () => {
-    const low = { ...createRunState("casual", 3), balls: 3 };
-    const s = applyObstacleHit(low, L6); // cost 4
+    const low = { ...createRunState("casual", 1), balls: 1 };
+    const s = applyObstacleHit(low, L1); // cost 1
     expect(s.balls).toBe(1);
     expect(s.status).toBe("playing");
   });
@@ -54,37 +54,37 @@ describe("applyCrystalHit", () => {
   it("scores and refills in Normal", () => {
     const s = applyCrystalHit(createRunState("normal", 10), L1);
     expect(s.score).toBe(CRYSTAL_POINTS * 1);
-    expect(s.balls).toBe(15); // +5
+    expect(s.balls).toBe(11); // +1
     expect(s.hitChain).toBe(1);
   });
-  it("refills one extra ball in Casual", () => {
+  it("refills flat 1 in Casual (no bonus)", () => {
     const s = applyCrystalHit(createRunState("casual", 10), L1);
-    expect(s.balls).toBe(16); // +5 +1
+    expect(s.balls).toBe(11); // +1, no casual bonus
   });
 });
 
-describe("applyObstacleCollision", () => {
-  it("costs balls and resets the streak in Normal, no score", () => {
+describe("applyCrash", () => {
+  it("costs 1 ball and resets the streak in Normal, no score", () => {
     let s = createRunState("normal", 10);
-    s = applyObstacleHit(s, L1); // earn some score + streak first
+    s = applyObstacleHit(s, L1); // earn score + streak first
     const beforeBalls = s.balls;
     const beforeScore = s.score;
-    s = applyObstacleCollision(s, L1);
-    expect(s.balls).toBe(beforeBalls - obstacleCost(L1));
-    expect(s.score).toBe(beforeScore); // a crash scores nothing
+    s = applyCrash(s);
+    expect(s.balls).toBe(beforeBalls - 1);
+    expect(s.score).toBe(beforeScore);
     expect(s.hitChain).toBe(0);
     expect(s.streak).toBe(1);
     expect(s.status).toBe("playing");
   });
   it("ends the run in Normal when a crash empties the reserve", () => {
     const low = { ...createRunState("normal", 1), balls: 1 };
-    const s = applyObstacleCollision(low, L6); // cost 4
+    const s = applyCrash(low);
     expect(s.balls).toBe(0);
     expect(s.status).toBe("ended");
   });
   it("clamps to 1 and never ends in Casual", () => {
     const low = { ...createRunState("casual", 1), balls: 1 };
-    const s = applyObstacleCollision(low, L6);
+    const s = applyCrash(low);
     expect(s.balls).toBe(1);
     expect(s.status).toBe("playing");
   });
