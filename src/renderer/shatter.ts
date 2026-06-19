@@ -1,77 +1,111 @@
 import {
-  Points, BufferGeometry, Float32BufferAttribute, PointsMaterial, Scene, Vector3, Color,
+  InstancedMesh,
+  BufferGeometry,
+  Float32BufferAttribute,
+  MeshStandardMaterial,
+  Scene,
+  Vector3,
+  Object3D,
+  Color,
+  DoubleSide,
 } from "three";
 
-const MAX_PARTICLES = 600;
+const MAX_SHARDS = 240;
+const PER_BURST = 16;
 const LIFETIME = 1.1;
 const GRAVITY = -14;
-const PARKED_Y = -100000;
+const HIDDEN_Y = -100000;
 
+/** Cosmetic glass-shard burst: a pooled InstancedMesh of small triangles that
+ *  fly out, tumble, fall under gravity, and retire. No persistent bodies. */
 export class ShatterField {
-  private positions = new Float32Array(MAX_PARTICLES * 3);
-  private velocities = new Float32Array(MAX_PARTICLES * 3);
-  private colors = new Float32Array(MAX_PARTICLES * 3);
-  private ages = new Float32Array(MAX_PARTICLES).fill(LIFETIME + 1);
-  private geom = new BufferGeometry();
-  private points: Points;
+  private mesh: InstancedMesh;
+  private pos = new Float32Array(MAX_SHARDS * 3);
+  private vel = new Float32Array(MAX_SHARDS * 3);
+  private rot = new Float32Array(MAX_SHARDS * 3);
+  private rotVel = new Float32Array(MAX_SHARDS * 3);
+  private ages = new Float32Array(MAX_SHARDS).fill(LIFETIME + 1);
+  private dummy = new Object3D();
   private scratch = new Color();
+  private nextSlot = 0;
 
   constructor(scene: Scene) {
-    // Initialize all positions to PARKED_Y so the initial buffer shows nothing
-    for (let i = 0; i < MAX_PARTICLES; i++) {
-      this.positions[i * 3] = 0;
-      this.positions[i * 3 + 1] = PARKED_Y;
-      this.positions[i * 3 + 2] = 0;
-    }
-    this.geom.setAttribute("position", new Float32BufferAttribute(this.positions, 3));
-    this.geom.setAttribute("color", new Float32BufferAttribute(this.colors, 3));
-    this.points = new Points(
-      this.geom,
-      new PointsMaterial({ size: 0.15, transparent: true, opacity: 0.9, vertexColors: true }),
+    const geo = new BufferGeometry();
+    // a small, slightly irregular triangular shard
+    geo.setAttribute(
+      "position",
+      new Float32BufferAttribute([0.0, 0.2, 0.0, -0.17, -0.13, 0.0, 0.15, -0.11, 0.0], 3),
     );
-    this.points.frustumCulled = false;
-    scene.add(this.points);
+    geo.computeVertexNormals();
+    const mat = new MeshStandardMaterial({
+      transparent: true,
+      opacity: 0.92,
+      metalness: 0.25,
+      roughness: 0.08,
+      side: DoubleSide,
+    });
+    this.mesh = new InstancedMesh(geo, mat, MAX_SHARDS);
+    this.mesh.frustumCulled = false;
+    // Pre-initialize instanceColor so setColorAt type-checks in older three builds
+    this.mesh.setColorAt(0, this.scratch);
+    for (let i = 0; i < MAX_SHARDS; i++) this.hide(i);
+    this.mesh.instanceMatrix.needsUpdate = true;
+    scene.add(this.mesh);
+  }
+
+  private hide(i: number): void {
+    this.dummy.position.set(0, HIDDEN_Y, 0);
+    this.dummy.scale.set(0, 0, 0);
+    this.dummy.rotation.set(0, 0, 0);
+    this.dummy.updateMatrix();
+    this.mesh.setMatrixAt(i, this.dummy.matrix);
   }
 
   burst(at: Vector3, color: number): void {
     this.scratch.setHex(color);
-    let spawned = 0;
-    for (let i = 0; i < MAX_PARTICLES && spawned < 24; i++) {
-      if (this.ages[i] <= LIFETIME) continue;
+    for (let n = 0; n < PER_BURST; n++) {
+      const i = this.nextSlot;
+      this.nextSlot = (this.nextSlot + 1) % MAX_SHARDS;
       this.ages[i] = 0;
-      this.positions[i * 3] = at.x;
-      this.positions[i * 3 + 1] = at.y;
-      this.positions[i * 3 + 2] = at.z;
-      this.velocities[i * 3] = (Math.random() - 0.5) * 7;
-      this.velocities[i * 3 + 1] = Math.random() * 5 + 1;
-      this.velocities[i * 3 + 2] = (Math.random() - 0.5) * 7;
-      this.colors[i * 3] = this.scratch.r;
-      this.colors[i * 3 + 1] = this.scratch.g;
-      this.colors[i * 3 + 2] = this.scratch.b;
-      spawned++;
+      this.pos[i * 3] = at.x;
+      this.pos[i * 3 + 1] = at.y;
+      this.pos[i * 3 + 2] = at.z;
+      this.vel[i * 3] = (Math.random() - 0.5) * 7;
+      this.vel[i * 3 + 1] = Math.random() * 5 + 1;
+      this.vel[i * 3 + 2] = (Math.random() - 0.5) * 7;
+      this.rot[i * 3] = Math.random() * 6.28;
+      this.rot[i * 3 + 1] = Math.random() * 6.28;
+      this.rot[i * 3 + 2] = Math.random() * 6.28;
+      this.rotVel[i * 3] = (Math.random() - 0.5) * 12;
+      this.rotVel[i * 3 + 1] = (Math.random() - 0.5) * 12;
+      this.rotVel[i * 3 + 2] = (Math.random() - 0.5) * 12;
+      this.mesh.setColorAt(i, this.scratch);
     }
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }
 
   update(dt: number): void {
-    for (let i = 0; i < MAX_PARTICLES; i++) {
+    for (let i = 0; i < MAX_SHARDS; i++) {
       if (this.ages[i] > LIFETIME) continue;
-      // Apply gravity before moving
-      this.velocities[i * 3 + 1] += GRAVITY * dt;
       this.ages[i] += dt;
       if (this.ages[i] > LIFETIME) {
-        // Particle just died this frame — park it off-screen
-        this.positions[i * 3 + 1] = PARKED_Y;
-      } else {
-        this.positions[i * 3] += this.velocities[i * 3] * dt;
-        this.positions[i * 3 + 1] += this.velocities[i * 3 + 1] * dt;
-        this.positions[i * 3 + 2] += this.velocities[i * 3 + 2] * dt;
+        this.hide(i);
+        continue;
       }
+      this.vel[i * 3 + 1] += GRAVITY * dt;
+      this.pos[i * 3] += this.vel[i * 3] * dt;
+      this.pos[i * 3 + 1] += this.vel[i * 3 + 1] * dt;
+      this.pos[i * 3 + 2] += this.vel[i * 3 + 2] * dt;
+      this.rot[i * 3] += this.rotVel[i * 3] * dt;
+      this.rot[i * 3 + 1] += this.rotVel[i * 3 + 1] * dt;
+      this.rot[i * 3 + 2] += this.rotVel[i * 3 + 2] * dt;
+      const s = 0.5 + 0.5 * Math.max(0, 1 - this.ages[i] / LIFETIME);
+      this.dummy.position.set(this.pos[i * 3], this.pos[i * 3 + 1], this.pos[i * 3 + 2]);
+      this.dummy.rotation.set(this.rot[i * 3], this.rot[i * 3 + 1], this.rot[i * 3 + 2]);
+      this.dummy.scale.set(s, s, s);
+      this.dummy.updateMatrix();
+      this.mesh.setMatrixAt(i, this.dummy.matrix);
     }
-    const posAttr = this.geom.getAttribute("position") as Float32BufferAttribute;
-    posAttr.copyArray(this.positions);
-    posAttr.needsUpdate = true;
-    const colAttr = this.geom.getAttribute("color") as Float32BufferAttribute;
-    colAttr.copyArray(this.colors);
-    colAttr.needsUpdate = true;
+    this.mesh.instanceMatrix.needsUpdate = true;
   }
 }
