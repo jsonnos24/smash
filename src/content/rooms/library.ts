@@ -36,4 +36,23 @@ export const ROOMS: RoomTemplate[] = [
     entities: [obstacle(-1.5, 1, 12), obstacle(0, 1, 12), obstacle(1.5, 1, 12),
                obstacle(-1, 1.5, 35), obstacle(1, 1.5, 35), obstacle(0, 0.5, 35),
                obstacle(-1.5, 1, 60), obstacle(0, 1, 60), obstacle(1.5, 1, 60), crystal(0, 2.5, 80)] },
+
+  // ---- Symmetric layouts (mirrored across the center line) ----
+  // Every off-center piece has a matched pair; centered pieces sit on x=0.
+  { id: "cc-sym-1", theme: "crystalCavern", difficulty: 2, length: 60,
+    entities: [obstacle(0, 1, 30),
+               crystal(-1.5, 1, 20), crystal(1.5, 1, 20),
+               crystal(0, 2, 48)] },
+  { id: "nt-sym-1", theme: "neonTunnel", difficulty: 4, length: 70,
+    entities: [obstacle(-1.2, 1, 24), obstacle(1.2, 1, 24),
+               obstacle(0, 1.6, 46),
+               crystal(-1.8, 0.6, 60), crystal(1.8, 0.6, 60)] },
+  { id: "gc-sym-1", theme: "glassChapel", difficulty: 5, length: 72,
+    entities: [obstacle(-1, 1, 20), obstacle(1, 1, 20),
+               obstacle(-1, 2.2, 44), obstacle(1, 2.2, 44),
+               crystal(0, 1, 62)] },
+  { id: "cc-sym-2", theme: "crystalCavern", difficulty: 7, length: 82,
+    entities: [obstacle(-1.6, 1, 18), obstacle(0, 1, 18), obstacle(1.6, 1, 18),
+               obstacle(-1.6, 2, 46), obstacle(0, 2, 46), obstacle(1.6, 2, 46),
+               crystal(0, 0.6, 70)] },
 ];
