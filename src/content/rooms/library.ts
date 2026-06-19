@@ -72,4 +72,39 @@ export const ROOMS: RoomTemplate[] = [
   { id: "cc-windmill-1", theme: "crystalCavern", difficulty: 6, length: 75,
     entities: [windmill(-1.6, 2.0, 25), windmill(1.6, 2.0, 50),
                crystal(0, 0.6, 10), crystal(0, 3.5, 65)] },
+
+  // ---- Extreme rooms (difficulty 10) ----
+  // cc-extreme-1: Crystal Cavern gauntlet — dense obstacle web with one windmill.
+  { id: "cc-extreme-1", theme: "crystalCavern", difficulty: 10, length: 95,
+    entities: [
+      // layer 1 (z=10): low-left, high-center, low-right
+      obstacle(-2.4, 0.5, 10), obstacle(0, 3.8, 10), obstacle(2.4, 0.5, 10),
+      // layer 2 (z=28): high-left, mid-center, high-right
+      obstacle(-2.2, 4.0, 28), obstacle(0, 1.8, 28), obstacle(2.2, 4.0, 28),
+      // layer 3 (z=50): stagger
+      obstacle(-1.2, 0.6, 50), obstacle(1.2, 3.8, 50),
+      // layer 4 (z=68): low-left, high-right
+      obstacle(-2.4, 3.8, 68), obstacle(2.4, 0.5, 68),
+      // windmill mid-run
+      windmill(0, 2.0, 38),
+      // single crystal reward
+      crystal(0, 0.5, 88),
+    ] },
+
+  // gc-extreme-1: Glass Chapel gauntlet — dense cross-pattern layers with slider.
+  { id: "gc-extreme-1", theme: "glassChapel", difficulty: 10, length: 95,
+    entities: [
+      // layer 1 (z=8): wall of four
+      obstacle(-2.4, 0.5, 8), obstacle(-0.8, 3.8, 8), obstacle(0.8, 0.5, 8), obstacle(2.4, 3.8, 8),
+      // layer 2 (z=28): alternating heights
+      obstacle(-2.2, 4.0, 28), obstacle(0, 0.5, 28), obstacle(2.2, 4.0, 28),
+      // layer 3 (z=52): squeeze
+      obstacle(-2.4, 1.6, 52), obstacle(2.4, 1.6, 52),
+      // layer 4 (z=72): top-center gauntlet
+      obstacle(-1.4, 3.8, 72), obstacle(1.4, 3.8, 72),
+      // sliding mid-channel threat
+      slider(0, 1.8, 42),
+      // single crystal reward
+      crystal(0, 4.0, 88),
+    ] },
 ];
