@@ -12,9 +12,13 @@ export function difficultyAt(distance: number): number {
   return Math.min(9, Math.max(1, 1 + distance / 350));
 }
 
-/** Gentle forward-speed multiplier ramp, capped. */
-export function speedAt(distance: number): number {
-  return Math.min(1.6, 1 + distance / 5000);
+/**
+ * Constant forward speed. A continuously-changing scroll speed makes the
+ * on-rails motion feel juddery, so speed is steady and difficulty comes from
+ * obstacle density (difficultyAt), not acceleration.
+ */
+export function speedAt(_distance: number): number {
+  return 1.0;
 }
 
 /** Theme cycles per checkpoint so variety returns without discrete levels. */
