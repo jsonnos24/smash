@@ -66,14 +66,14 @@ export class Session {
   }
 
   private pushGate(z: number): void {
-    for (const dx of [-1.1, 1.1]) {
+    for (const dx of [-1.4, 1.4]) {
       this.entities.push({
         id: this.nextEntityId++,
         kind: "door",
         baseZ: z,
         x: dx,
-        y: 1.2,
-        size: 1.3,
+        y: 1.6,
+        size: 1.7,
         hits: DOOR_HITS,
         consumed: false,
       });

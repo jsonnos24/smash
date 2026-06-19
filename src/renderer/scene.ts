@@ -15,9 +15,9 @@ export interface RenderItem {
 }
 
 // Corridor geometry constants
-const W = 3.2;
-const FLOOR_Y = -1.6;
-const CEIL_Y = 4.0;
+const W = 4.4;
+const FLOOR_Y = -2.4;
+const CEIL_Y = 5.6;
 const NEAR_Z = 2;
 const CORRIDOR_DEPTH = 96;
 const SPACING = 8;
@@ -42,7 +42,7 @@ export class SceneManager {
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true });
-    this.camera = new PerspectiveCamera(65, 1, 0.1, 200);
+    this.camera = new PerspectiveCamera(72, 1, 0.1, 200);
     this.camera.position.set(0, 1, 0);
     this.camera.lookAt(new Vector3(0, 1, -10));
     this.scene.add(new AmbientLight(0xffffff, 0.6));
@@ -135,7 +135,7 @@ export class SceneManager {
   setScroll(distance: number, progress = 0): void {
     const d = Math.max(0, distance);
     // Corridor widens and narrows slowly as the run progresses (rooms of varying size).
-    const w = 3.4 + 0.7 * Math.sin(d * 0.045);
+    const w = 4.6 + 1.0 * Math.sin(d * 0.045);
 
     // Rungs: apply current width + scrolling z.
     const rungXSign = [-1, 1, 1, 1, 1, -1, -1, -1];
