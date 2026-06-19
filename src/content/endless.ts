@@ -4,6 +4,8 @@ export const START_BALLS = 20;
 export const MAX_BALLS = 40;
 export const CHECKPOINT_SPACING = 400;
 export const LOOKAHEAD = 130;
+export const DOOR_HITS = 2;
+export const GATE_GAP = 12; // forward space a gate occupies before the next room
 
 const THEMES: Theme[] = ["crystalCavern", "neonTunnel", "glassChapel"];
 

@@ -8,9 +8,10 @@ import type { Theme } from "../content/types";
 
 export interface RenderItem {
   id: number;
-  kind: "obstacle" | "crystal" | "ball";
+  kind: "obstacle" | "crystal" | "ball" | "door";
   pos: Vector3;
   size: number;
+  damaged?: boolean;
 }
 
 // Corridor geometry constants
@@ -209,6 +210,12 @@ export class SceneManager {
         new MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9, roughness: 0.2 }),
       );
     }
+    if (item.kind === "door") {
+      return new Mesh(
+        new BoxGeometry(item.size * 2, item.size * 2, 0.3),
+        new MeshStandardMaterial({ color: 0xffc04d, transparent: true, opacity: 0.9, metalness: 0.5, roughness: 0.3, emissive: 0x5a3d00, emissiveIntensity: 0.35 }),
+      );
+    }
     return new Mesh(
       new BoxGeometry(item.size * 2, item.size * 2, 0.2),
       new MeshStandardMaterial({ color: c.glass, transparent: true, opacity: 0.8, metalness: 0.1, roughness: 0.1, emissive: c.glass, emissiveIntensity: 0.15 }),
@@ -226,6 +233,9 @@ export class SceneManager {
         this.scene.add(mesh);
       }
       mesh.position.copy(item.pos);
+      if (item.kind === "door") {
+        (mesh.material as MeshStandardMaterial).emissive.setHex(item.damaged ? 0x7a1a1a : 0x5a3d00);
+      }
     }
     for (const [id, mesh] of this.meshes) {
       if (!seen.has(id)) {

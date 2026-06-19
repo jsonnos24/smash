@@ -90,4 +90,14 @@ describe("Session (endless)", () => {
     }
     expect(jumped).toBe(true);
   });
+
+  it("inserts door gates between rooms", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    let sawDoor = false;
+    for (let i = 0; i < 2000 && !sawDoor; i++) {
+      s.update(0.1);
+      if (s.colliders().some((c) => c.kind === "door")) sawDoor = true;
+    }
+    expect(sawDoor).toBe(true);
+  });
 });

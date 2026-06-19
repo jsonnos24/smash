@@ -3,6 +3,7 @@ import { MAX_BALLS } from "../content/endless";
 
 export const OBSTACLE_POINTS = 50;
 export const CRYSTAL_POINTS = 100;
+export const DOOR_POINTS = 80;
 
 export const COLLISION_COST = 1;
 
@@ -36,6 +37,12 @@ export function applyCrash(state: RunState): RunState {
     status = "ended";
   }
   return { ...state, balls, hitChain: 0, streak: streakMultiplier(0), status };
+}
+
+/** A hit on a door. Always refunds the thrown ball; only the breaking hit scores + builds streak. */
+export function applyDoorHit(state: RunState, broke: boolean): RunState {
+  if (broke) return { ...state, ...scoreHit(state, DOOR_POINTS), balls: Math.min(MAX_BALLS, state.balls + 1) };
+  return { ...state, balls: Math.min(MAX_BALLS, state.balls + 1) };
 }
 
 export function applyMiss(state: RunState): RunState {

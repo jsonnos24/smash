@@ -5,6 +5,7 @@ import {
   applyCrystalHit,
   applyMiss,
   applyCrash,
+  applyDoorHit,
   OBSTACLE_POINTS,
   CRYSTAL_POINTS,
 } from "./economy";
@@ -65,6 +66,25 @@ describe("applyCrash", () => {
     const s = applyCrash(low);
     expect(s.balls).toBe(1);
     expect(s.status).toBe("playing");
+  });
+});
+
+describe("applyDoorHit", () => {
+  it("a non-breaking hit refunds the ball but does not score", () => {
+    const s = applyDoorHit(createRunState("normal", 20), false);
+    expect(s.balls).toBe(21);
+    expect(s.score).toBe(0);
+    expect(s.hitChain).toBe(0);
+  });
+  it("the breaking hit refunds the ball and scores", () => {
+    const s = applyDoorHit(createRunState("normal", 20), true);
+    expect(s.balls).toBe(21);
+    expect(s.score).toBe(80);
+    expect(s.hitChain).toBe(1);
+  });
+  it("door refund never exceeds the cap", () => {
+    const s = applyDoorHit({ ...createRunState("normal", 40), balls: 40 }, false);
+    expect(s.balls).toBe(40);
   });
 });
 

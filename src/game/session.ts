@@ -1,10 +1,10 @@
 import { Box3, PerspectiveCamera, Vector3 } from "three";
 import { createRunState, type Mode, type RunState } from "./state";
-import { applyObstacleHit, applyCrystalHit, applyMiss, applyCrash } from "./economy";
+import { applyObstacleHit, applyCrystalHit, applyMiss, applyCrash, applyDoorHit } from "./economy";
 import { createThrow, type ScreenPoint } from "./throw";
 import { stepBall, detectHit, type Ball, type Collider } from "../engine/physics";
 import { makeRng, pickRoom } from "../generator/levelBuilder";
-import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD } from "../content/endless";
+import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP } from "../content/endless";
 import type { RoomTemplate } from "../content/rooms";
 
 const BASE_SPEED = 9;
@@ -13,18 +13,19 @@ const ACTIVE_NEAR = 5;
 const ACTIVE_FAR = -60;
 
 export interface SessionEvents {
-  onShatter?: (kind: "obstacle" | "crystal", at: Vector3) => void;
+  onShatter?: (kind: "obstacle" | "crystal" | "door", at: Vector3) => void;
   onCrash?: () => void;
   onCheckpoint?: (distance: number) => void;
 }
 
 interface WorldEntity {
   id: number;
-  kind: "obstacle" | "crystal";
+  kind: "obstacle" | "crystal" | "door";
   baseZ: number;
   x: number;
   y: number;
   size: number;
+  hits: number;
   consumed: boolean;
 }
 
@@ -64,6 +65,21 @@ export class Session {
     return this._state.distance - baseZ;
   }
 
+  private pushGate(z: number): void {
+    for (const dx of [-1.1, 1.1]) {
+      this.entities.push({
+        id: this.nextEntityId++,
+        kind: "door",
+        baseZ: z,
+        x: dx,
+        y: 1.2,
+        size: 1.3,
+        hits: DOOR_HITS,
+        consumed: false,
+      });
+    }
+  }
+
   private generateAhead(): void {
     while (this.frontZ < this._state.distance + LOOKAHEAD) {
       const tmpl = pickRoom(this.rooms, difficultyAt(this.frontZ), this.rng);
@@ -75,10 +91,13 @@ export class Session {
           x: e.x,
           y: e.y,
           size: e.size,
+          hits: 1,
           consumed: false,
         });
       }
       this.frontZ += tmpl.length;
+      this.pushGate(this.frontZ);
+      this.frontZ += GATE_GAP;
     }
   }
 
@@ -93,6 +112,7 @@ export class Session {
         id: e.id,
         kind: e.kind,
         box: new Box3(new Vector3(e.x - h, e.y - h, z - h), new Vector3(e.x + h, e.y + h, z + h)),
+        damaged: e.kind === "door" && e.hits < DOOR_HITS,
       });
     }
     return out;
@@ -138,7 +158,7 @@ export class Session {
       if (this.worldZ(e.baseZ) >= 0) {
         e.consumed = true;
         this._state = applyCrash(this._state);
-        this.events.onShatter?.(e.kind, new Vector3(e.x, e.y, this.worldZ(e.baseZ)));
+        this.events.onShatter?.(e.kind === "crystal" ? "crystal" : "obstacle", new Vector3(e.x, e.y, this.worldZ(e.baseZ)));
         this.events.onCrash?.();
       }
     }
@@ -155,8 +175,16 @@ export class Session {
   private resolveHit(collider: Collider): void {
     const e = this.entities.find((x) => x.id === collider.id);
     if (!e || e.consumed) return;
-    e.consumed = true;
     const at = new Vector3(e.x, e.y, this.worldZ(e.baseZ));
+    if (e.kind === "door") {
+      e.hits -= 1;
+      const broke = e.hits <= 0;
+      if (broke) e.consumed = true;
+      this._state = applyDoorHit(this._state, broke);
+      this.events.onShatter?.("obstacle", at);
+      return;
+    }
+    e.consumed = true;
     if (collider.kind === "obstacle") this._state = applyObstacleHit(this._state);
     else this._state = applyCrystalHit(this._state);
     this.events.onShatter?.(collider.kind, at);

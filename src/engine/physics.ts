@@ -11,8 +11,9 @@ export interface Ball {
 
 export interface Collider {
   id: number;
-  kind: "obstacle" | "crystal";
+  kind: "obstacle" | "crystal" | "door";
   box: Box3;
+  damaged?: boolean;
 }
 
 export function stepBall(ball: Ball, dt: number): void {
