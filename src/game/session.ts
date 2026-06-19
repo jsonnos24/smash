@@ -4,7 +4,7 @@ import { applyObstacleHit, applyCrystalHit, applyMiss, applyCrash, applyDoorHit,
 import { createThrow, type ScreenPoint } from "./throw";
 import { stepBall, detectHit, reflectBounds, type Ball, type Collider } from "../engine/physics";
 import { makeRng, pickRoom } from "../generator/levelBuilder";
-import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP } from "../content/endless";
+import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP, pathOffsetX } from "../content/endless";
 import type { RoomTemplate } from "../content/rooms";
 
 const BASE_SPEED = 9;
@@ -141,7 +141,8 @@ export class Session {
   }
 
   private currentX(e: WorldEntity): number {
-    return e.motion === "slide" ? slideX(e.x, e.baseZ, this._t) : e.x;
+    const base = e.motion === "slide" ? slideX(e.x, e.baseZ, this._t) : e.x;
+    return base + (pathOffsetX(e.baseZ) - pathOffsetX(this._state.distance));
   }
 
   throwBall(p: ScreenPoint): void {

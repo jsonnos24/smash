@@ -6,6 +6,7 @@ import {
 import { THEME_COLORS } from "./themes";
 import { Scenery } from "./scenery";
 import type { Theme } from "../content/types";
+import { pathOffsetX } from "../content/endless";
 
 export interface RenderItem {
   id: number;
@@ -24,6 +25,9 @@ const NEAR_Z = 2;
 const CORRIDOR_DEPTH = 96;
 const SPACING = 8;
 const RUNGS = CORRIDOR_DEPTH / SPACING; // 12
+const EDGE_SEG_LEN = 4; // longitudinal tessellation step (units)
+const EDGE_SEGS = CORRIDOR_DEPTH / EDGE_SEG_LEN; // 24 segments per long edge/line
+const LONG = 6; // longitudinal floor lines across the width
 
 export class SceneManager {
   readonly scene = new Scene();
@@ -38,8 +42,15 @@ export class SceneManager {
   private corridorRungPositions!: Float32Array;
   private corridorEdgeGeom!: BufferGeometry;
   private corridorEdgePositions!: Float32Array;
+  // Per-edge base X and Y (for 4 long edges): [baseX, baseY] for each
+  private corridorEdgeBases!: Array<[number, number]>;
   private corridorFloorGeom!: BufferGeometry;
+  private corridorFloorPositions!: Float32Array;
   private corridorFloorMaterial!: LineBasicMaterial;
+  // X positions of each longitudinal floor line (LONG+1 lines)
+  private corridorFloorLineX!: Float32Array;
+  // Z positions of lateral floor lines (one per rung)
+  private corridorFloorLateralZ!: Float32Array;
   private shakeT = 0;
   private scenery!: Scenery;
 
@@ -57,23 +68,28 @@ export class SceneManager {
     this.setTheme("crystalCavern");
   }
 
+  /** Lateral offset of the corridor at corridor-local z (negative = ahead), given player distance d. */
+  private curveX(d: number, z: number): number {
+    return pathOffsetX(d - z) - pathOffsetX(d);
+  }
+
   private buildCorridor(): void {
     const accentColor = THEME_COLORS[this.theme].accent;
 
-    // --- Static longitudinal edges ---
-    // 4 long edges of rectangular tube: from NEAR_Z back to -CORRIDOR_DEPTH
-    // Corners: (-W, FLOOR_Y), (+W, FLOOR_Y), (-W, CEIL_Y), (+W, CEIL_Y)
-    const edgeVerts = new Float32Array([
-      // bottom-left edge
-      -W, FLOOR_Y, NEAR_Z,   -W, FLOOR_Y, -CORRIDOR_DEPTH,
-      // bottom-right edge
-       W, FLOOR_Y, NEAR_Z,    W, FLOOR_Y, -CORRIDOR_DEPTH,
-      // top-left edge
-      -W, CEIL_Y,  NEAR_Z,   -W, CEIL_Y,  -CORRIDOR_DEPTH,
-      // top-right edge
-       W, CEIL_Y,  NEAR_Z,    W, CEIL_Y,  -CORRIDOR_DEPTH,
-    ]);
-    this.corridorEdgePositions = edgeVerts;
+    // --- Tessellated longitudinal edges ---
+    // 4 long edges: bottom-left, bottom-right, top-left, top-right
+    // Each is a polyline of EDGE_SEGS segments → EDGE_VERTS_PER_LINE points
+    // As LineSegments: EDGE_SEGS × 2 verts per edge = EDGE_SEGS * 2 verts
+    // Total verts across 4 edges: 4 × EDGE_SEGS × 2
+    this.corridorEdgeBases = [
+      [-W, FLOOR_Y],  // bottom-left
+      [ W, FLOOR_Y],  // bottom-right
+      [-W, CEIL_Y ],  // top-left
+      [ W, CEIL_Y ],  // top-right
+    ];
+    const edgeVertCount = 4 * EDGE_SEGS * 2 * 3; // 4 edges × segs × 2 endpoints × 3 floats
+    this.corridorEdgePositions = new Float32Array(edgeVertCount);
+    // Initialize with placeholder (setScroll will fill them)
     this.corridorEdgeGeom = new BufferGeometry();
     this.corridorEdgeGeom.setAttribute("position", new Float32BufferAttribute(this.corridorEdgePositions, 3));
     this.corridorEdgeMaterial = new LineBasicMaterial({ color: accentColor, transparent: true, opacity: 0.5 });
@@ -85,26 +101,6 @@ export class SceneManager {
     // Segment pairs: bottom, right, top, left
     const rungVertCount = RUNGS * 8 * 3; // RUNGS rungs × 8 vertices × 3 floats
     this.corridorRungPositions = new Float32Array(rungVertCount);
-
-    // Precompute x,y for each rung's 8 vertices (same for all rungs)
-    // Rect outline: bottom-left→bottom-right, bottom-right→top-right, top-right→top-left, top-left→bottom-left
-    const rungXY = [
-      -W, FLOOR_Y,   W, FLOOR_Y,   // bottom
-       W, FLOOR_Y,   W, CEIL_Y,    // right
-       W, CEIL_Y,   -W, CEIL_Y,    // top
-      -W, CEIL_Y,   -W, FLOOR_Y,   // left
-    ];
-
-    // Initialize z positions (will be updated by setScroll)
-    for (let i = 0; i < RUNGS; i++) {
-      const base = i * 8 * 3;
-      for (let v = 0; v < 8; v++) {
-        this.corridorRungPositions[base + v * 3 + 0] = rungXY[v * 2 + 0];
-        this.corridorRungPositions[base + v * 3 + 1] = rungXY[v * 2 + 1];
-        this.corridorRungPositions[base + v * 3 + 2] = 0; // placeholder z
-      }
-    }
-
     this.corridorRungGeom = new BufferGeometry();
     this.corridorRungGeom.setAttribute(
       "position",
@@ -119,18 +115,23 @@ export class SceneManager {
     this.scene.add(rungLines);
 
     // --- Floor grid (fades in during the last stretch of a level) ---
-    const floorVerts: number[] = [];
-    const LONG = 6; // longitudinal floor lines across the width
+    // Longitudinal lines: (LONG+1) lines, each tessellated like edges
+    // Lateral lines: RUNGS lines at fixed z each, just 2 endpoints
+    this.corridorFloorLineX = new Float32Array(LONG + 1);
     for (let i = 0; i <= LONG; i++) {
-      const x = -W + (2 * W * i) / LONG;
-      floorVerts.push(x, FLOOR_Y, NEAR_Z, x, FLOOR_Y, -CORRIDOR_DEPTH);
+      this.corridorFloorLineX[i] = -W + (2 * W * i) / LONG;
     }
+    this.corridorFloorLateralZ = new Float32Array(RUNGS);
     for (let i = 0; i < RUNGS; i++) {
-      const z = NEAR_Z - i * SPACING; // lateral floor lines every SPACING
-      floorVerts.push(-W, FLOOR_Y, z, W, FLOOR_Y, z);
+      this.corridorFloorLateralZ[i] = NEAR_Z - i * SPACING;
     }
+
+    // Floor buffer: longitudinal (LONG+1 lines × EDGE_SEGS × 2 verts) + lateral (RUNGS × 2 verts)
+    const floorLongVerts = (LONG + 1) * EDGE_SEGS * 2 * 3;
+    const floorLatVerts = RUNGS * 2 * 3;
+    this.corridorFloorPositions = new Float32Array(floorLongVerts + floorLatVerts);
     this.corridorFloorGeom = new BufferGeometry();
-    this.corridorFloorGeom.setAttribute("position", new Float32BufferAttribute(new Float32Array(floorVerts), 3));
+    this.corridorFloorGeom.setAttribute("position", new Float32BufferAttribute(this.corridorFloorPositions, 3));
     this.corridorFloorMaterial = new LineBasicMaterial({ color: accentColor, transparent: true, opacity: 0 });
     const floorGrid = new LineSegments(this.corridorFloorGeom, this.corridorFloorMaterial);
     this.scene.add(floorGrid);
@@ -141,14 +142,15 @@ export class SceneManager {
     // Corridor widens and narrows slowly as the run progresses (rooms of varying size).
     const w = 4.6 + 1.0 * Math.sin(d * 0.045);
 
-    // Rungs: apply current width + scrolling z.
+    // Rungs: apply current width + scrolling z + curve offset.
     const rungXSign = [-1, 1, 1, 1, 1, -1, -1, -1];
     const rungYIsCeil = [0, 0, 0, 1, 1, 1, 1, 0];
     for (let i = 0; i < RUNGS; i++) {
       const z = ((d + i * SPACING) % CORRIDOR_DEPTH) - CORRIDOR_DEPTH;
+      const cx = this.curveX(d, z);
       const base = i * 8 * 3;
       for (let v = 0; v < 8; v++) {
-        this.corridorRungPositions[base + v * 3 + 0] = rungXSign[v] * w;
+        this.corridorRungPositions[base + v * 3 + 0] = rungXSign[v] * w + cx;
         this.corridorRungPositions[base + v * 3 + 1] = rungYIsCeil[v] ? CEIL_Y : FLOOR_Y;
         this.corridorRungPositions[base + v * 3 + 2] = z;
       }
@@ -157,12 +159,66 @@ export class SceneManager {
     rattr.copyArray(this.corridorRungPositions);
     rattr.needsUpdate = true;
 
-    // Edges: apply current width (x = ±w); z unchanged.
-    const edgeXSign = [-1, -1, 1, 1, -1, -1, 1, 1];
-    for (let v = 0; v < 8; v++) this.corridorEdgePositions[v * 3 + 0] = edgeXSign[v] * w;
+    // Tessellated edges: 4 edges × EDGE_SEGS segments.
+    // Each segment is 2 verts (LineSegments). z goes from NEAR_Z to -CORRIDOR_DEPTH.
+    for (let e = 0; e < 4; e++) {
+      const [baseX, baseY] = this.corridorEdgeBases[e];
+      const xSign = baseX < 0 ? -1 : 1;
+      const edgeOffset = e * EDGE_SEGS * 2 * 3;
+      for (let s = 0; s < EDGE_SEGS; s++) {
+        const z0 = NEAR_Z - s * EDGE_SEG_LEN;
+        const z1 = NEAR_Z - (s + 1) * EDGE_SEG_LEN;
+        const cx0 = this.curveX(d, z0);
+        const cx1 = this.curveX(d, z1);
+        const off = edgeOffset + s * 2 * 3;
+        this.corridorEdgePositions[off + 0] = xSign * w + cx0;
+        this.corridorEdgePositions[off + 1] = baseY;
+        this.corridorEdgePositions[off + 2] = z0;
+        this.corridorEdgePositions[off + 3] = xSign * w + cx1;
+        this.corridorEdgePositions[off + 4] = baseY;
+        this.corridorEdgePositions[off + 5] = z1;
+      }
+    }
     const eattr = this.corridorEdgeGeom.getAttribute("position") as Float32BufferAttribute;
     eattr.copyArray(this.corridorEdgePositions);
     eattr.needsUpdate = true;
+
+    // Floor grid: tessellated longitudinal lines + curved lateral lines.
+    // Longitudinal (LONG+1 lines, each EDGE_SEGS segments):
+    const floorLongStride = EDGE_SEGS * 2 * 3;
+    for (let li = 0; li <= LONG; li++) {
+      const baseX = this.corridorFloorLineX[li];
+      const lineOff = li * floorLongStride;
+      for (let s = 0; s < EDGE_SEGS; s++) {
+        const z0 = NEAR_Z - s * EDGE_SEG_LEN;
+        const z1 = NEAR_Z - (s + 1) * EDGE_SEG_LEN;
+        const cx0 = this.curveX(d, z0);
+        const cx1 = this.curveX(d, z1);
+        const off = lineOff + s * 2 * 3;
+        this.corridorFloorPositions[off + 0] = baseX + cx0;
+        this.corridorFloorPositions[off + 1] = FLOOR_Y;
+        this.corridorFloorPositions[off + 2] = z0;
+        this.corridorFloorPositions[off + 3] = baseX + cx1;
+        this.corridorFloorPositions[off + 4] = FLOOR_Y;
+        this.corridorFloorPositions[off + 5] = z1;
+      }
+    }
+    // Lateral floor lines (sit at a single z, just offset X by curveX):
+    const latBase = (LONG + 1) * floorLongStride;
+    for (let i = 0; i < RUNGS; i++) {
+      const z = this.corridorFloorLateralZ[i];
+      const cx = this.curveX(d, z);
+      const off = latBase + i * 2 * 3;
+      this.corridorFloorPositions[off + 0] = -w + cx;
+      this.corridorFloorPositions[off + 1] = FLOOR_Y;
+      this.corridorFloorPositions[off + 2] = z;
+      this.corridorFloorPositions[off + 3] =  w + cx;
+      this.corridorFloorPositions[off + 4] = FLOOR_Y;
+      this.corridorFloorPositions[off + 5] = z;
+    }
+    const fattr = this.corridorFloorGeom.getAttribute("position") as Float32BufferAttribute;
+    fattr.copyArray(this.corridorFloorPositions);
+    fattr.needsUpdate = true;
 
     // Brightness undulates as you travel.
     const op = 0.45 + 0.2 * Math.sin(d * 0.06);
@@ -171,6 +227,11 @@ export class SceneManager {
 
     // Floor grid fades in over the last 30% of the level.
     this.corridorFloorMaterial.opacity = Math.min(1, Math.max(0, (progress - 0.7) / 0.3)) * 0.55;
+
+    // Camera banks into upcoming turns.
+    const aheadOff = pathOffsetX(d + 12) - pathOffsetX(d);
+    this.camera.rotation.z = Math.max(-0.22, Math.min(0.22, -aheadOff * 0.05));
+
     this.scenery.update(distance);
   }
 

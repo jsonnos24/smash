@@ -29,3 +29,8 @@ export function themeAt(checkpointIndex: number): Theme {
   const n = THEMES.length;
   return THEMES[((checkpointIndex % n) + n) % n];
 }
+
+/** Lateral position of the track at path-distance s — a smooth meander (curves/turns). */
+export function pathOffsetX(distance: number): number {
+  return 1.7 * Math.sin(distance * 0.016) + 0.9 * Math.sin(distance * 0.039);
+}
