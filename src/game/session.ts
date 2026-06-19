@@ -14,6 +14,7 @@ const ACTIVE_FAR = -60;
 
 export interface SessionEvents {
   onShatter?: (kind: "obstacle" | "crystal", at: Vector3) => void;
+  onCrash?: () => void;
 }
 
 interface WorldEntity {
@@ -139,6 +140,7 @@ export class Session {
         e.consumed = true;
         this._state = applyObstacleCollision(this._state, this.level());
         this.events.onShatter?.("obstacle", new Vector3(e.x, e.y, this.worldZ(e.baseZ)));
+        this.events.onCrash?.();
         if (this._state.status !== "playing") break;
       }
     }

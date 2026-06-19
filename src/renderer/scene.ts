@@ -33,6 +33,11 @@ export class SceneManager {
   private corridorRungMaterial!: LineBasicMaterial;
   private corridorRungGeom!: BufferGeometry;
   private corridorRungPositions!: Float32Array;
+  private corridorEdgeGeom!: BufferGeometry;
+  private corridorEdgePositions!: Float32Array;
+  private corridorFloorGeom!: BufferGeometry;
+  private corridorFloorMaterial!: LineBasicMaterial;
+  private shakeT = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true });
@@ -63,14 +68,11 @@ export class SceneManager {
       // top-right edge
        W, CEIL_Y,  NEAR_Z,    W, CEIL_Y,  -CORRIDOR_DEPTH,
     ]);
-    const edgeGeom = new BufferGeometry();
-    edgeGeom.setAttribute("position", new Float32BufferAttribute(edgeVerts, 3));
-    this.corridorEdgeMaterial = new LineBasicMaterial({
-      color: accentColor,
-      transparent: true,
-      opacity: 0.5,
-    });
-    const edgeLines = new LineSegments(edgeGeom, this.corridorEdgeMaterial);
+    this.corridorEdgePositions = edgeVerts;
+    this.corridorEdgeGeom = new BufferGeometry();
+    this.corridorEdgeGeom.setAttribute("position", new Float32BufferAttribute(this.corridorEdgePositions, 3));
+    this.corridorEdgeMaterial = new LineBasicMaterial({ color: accentColor, transparent: true, opacity: 0.5 });
+    const edgeLines = new LineSegments(this.corridorEdgeGeom, this.corridorEdgeMaterial);
     this.scene.add(edgeLines);
 
     // --- Scrolling rungs ---
@@ -110,20 +112,64 @@ export class SceneManager {
     });
     const rungLines = new LineSegments(this.corridorRungGeom, this.corridorRungMaterial);
     this.scene.add(rungLines);
+
+    // --- Floor grid (fades in during the last stretch of a level) ---
+    const floorVerts: number[] = [];
+    const LONG = 6; // longitudinal floor lines across the width
+    for (let i = 0; i <= LONG; i++) {
+      const x = -W + (2 * W * i) / LONG;
+      floorVerts.push(x, FLOOR_Y, NEAR_Z, x, FLOOR_Y, -CORRIDOR_DEPTH);
+    }
+    for (let i = 0; i < RUNGS; i++) {
+      const z = NEAR_Z - i * SPACING; // lateral floor lines every SPACING
+      floorVerts.push(-W, FLOOR_Y, z, W, FLOOR_Y, z);
+    }
+    this.corridorFloorGeom = new BufferGeometry();
+    this.corridorFloorGeom.setAttribute("position", new Float32BufferAttribute(new Float32Array(floorVerts), 3));
+    this.corridorFloorMaterial = new LineBasicMaterial({ color: accentColor, transparent: true, opacity: 0 });
+    const floorGrid = new LineSegments(this.corridorFloorGeom, this.corridorFloorMaterial);
+    this.scene.add(floorGrid);
   }
 
-  setScroll(distance: number): void {
+  setScroll(distance: number, progress = 0): void {
     const d = Math.max(0, distance);
+    // Corridor widens and narrows slowly as the run progresses (rooms of varying size).
+    const w = 3.4 + 0.7 * Math.sin(d * 0.045);
+
+    // Rungs: apply current width + scrolling z.
+    const rungXSign = [-1, 1, 1, 1, 1, -1, -1, -1];
+    const rungYIsCeil = [0, 0, 0, 1, 1, 1, 1, 0];
     for (let i = 0; i < RUNGS; i++) {
       const z = ((d + i * SPACING) % CORRIDOR_DEPTH) - CORRIDOR_DEPTH;
       const base = i * 8 * 3;
       for (let v = 0; v < 8; v++) {
+        this.corridorRungPositions[base + v * 3 + 0] = rungXSign[v] * w;
+        this.corridorRungPositions[base + v * 3 + 1] = rungYIsCeil[v] ? CEIL_Y : FLOOR_Y;
         this.corridorRungPositions[base + v * 3 + 2] = z;
       }
     }
-    const attr = this.corridorRungGeom.getAttribute("position") as Float32BufferAttribute;
-    attr.copyArray(this.corridorRungPositions);
-    attr.needsUpdate = true;
+    const rattr = this.corridorRungGeom.getAttribute("position") as Float32BufferAttribute;
+    rattr.copyArray(this.corridorRungPositions);
+    rattr.needsUpdate = true;
+
+    // Edges: apply current width (x = ±w); z unchanged.
+    const edgeXSign = [-1, -1, 1, 1, -1, -1, 1, 1];
+    for (let v = 0; v < 8; v++) this.corridorEdgePositions[v * 3 + 0] = edgeXSign[v] * w;
+    const eattr = this.corridorEdgeGeom.getAttribute("position") as Float32BufferAttribute;
+    eattr.copyArray(this.corridorEdgePositions);
+    eattr.needsUpdate = true;
+
+    // Brightness undulates as you travel.
+    const op = 0.45 + 0.2 * Math.sin(d * 0.06);
+    this.corridorEdgeMaterial.opacity = op;
+    this.corridorRungMaterial.opacity = op;
+
+    // Floor grid fades in over the last 30% of the level.
+    this.corridorFloorMaterial.opacity = Math.min(1, Math.max(0, (progress - 0.7) / 0.3)) * 0.55;
+  }
+
+  shake(amount = 0.35): void {
+    this.shakeT = Math.max(this.shakeT, amount);
   }
 
   setTheme(theme: Theme): void {
@@ -136,6 +182,9 @@ export class SceneManager {
     }
     if (this.corridorRungMaterial) {
       this.corridorRungMaterial.color.setHex(c.accent);
+    }
+    if (this.corridorFloorMaterial) {
+      this.corridorFloorMaterial.color.setHex(c.accent);
     }
   }
 
@@ -162,7 +211,7 @@ export class SceneManager {
     }
     return new Mesh(
       new BoxGeometry(item.size * 2, item.size * 2, 0.2),
-      new MeshStandardMaterial({ color: c.glass, transparent: true, opacity: 0.4, metalness: 0.1, roughness: 0.05 }),
+      new MeshStandardMaterial({ color: c.glass, transparent: true, opacity: 0.8, metalness: 0.1, roughness: 0.1, emissive: c.glass, emissiveIntensity: 0.15 }),
     );
   }
 
@@ -189,7 +238,20 @@ export class SceneManager {
   }
 
   render(): void {
-    this.renderer.render(this.scene, this.camera);
+    if (this.shakeT > 0.0001) {
+      const k = this.shakeT;
+      const ox = (Math.random() - 0.5) * k;
+      const oy = (Math.random() - 0.5) * k;
+      this.camera.position.x += ox;
+      this.camera.position.y += oy;
+      this.renderer.render(this.scene, this.camera);
+      this.camera.position.x -= ox;
+      this.camera.position.y -= oy;
+      this.shakeT *= 0.8;
+    } else {
+      this.shakeT = 0;
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   dispose(): void {
@@ -202,6 +264,9 @@ export class SceneManager {
     this.corridorRungGeom.dispose();
     this.corridorEdgeMaterial.dispose();
     this.corridorRungMaterial.dispose();
+    this.corridorEdgeGeom.dispose();
+    this.corridorFloorGeom.dispose();
+    this.corridorFloorMaterial.dispose();
     this.renderer.dispose();
   }
 }

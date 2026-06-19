@@ -17,7 +17,7 @@ export class Hud {
       </div>
       <div class="hud-mode" data-hud="mode">NORMAL</div>
       <div class="hud-distance" data-hud="distance">Room 1 · 0m</div>
-      <div class="crosshair"></div>`;
+      `;
     this.root.appendChild(this.el);
   }
 

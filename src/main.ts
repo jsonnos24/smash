@@ -71,7 +71,10 @@ function bootstrap(): void {
       shatter.update(dt);
       if (session) {
         scene.sync(renderItems());
-        scene.setScroll(session.state.distance);
+        scene.setScroll(
+          session.state.distance,
+          session.built.totalLength > 0 ? Math.min(1, session.state.distance / session.built.totalLength) : 0,
+        );
         hud.update(session.state, session.built.level, session.built.rooms.length);
         if (session.state.status !== "playing") endRun();
       }
@@ -108,6 +111,7 @@ function bootstrap(): void {
         shatter.burst(at, kind === "crystal" ? 0x7ffcd9 : 0x4fb3a3);
         audio.playSfx(kind === "crystal" ? "shatterCrystal" : "shatterGlass");
       },
+      onCrash: () => scene.shake(0.35),
     });
     menus.hide();
     loop.resume();

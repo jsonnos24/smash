@@ -7,4 +7,3 @@
 .hud-streak { font-size: 12px; color: #ffd278; }
 .hud-mode { position: absolute; top: 12px; right: 14px; font-size: 12px; background: rgba(127,252,217,.18); border: 1px solid #7ffcd9; border-radius: 10px; padding: 2px 8px; }
 .hud-distance { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 12px; opacity: .8; }
-.crosshair { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border: 1px solid #fff; border-radius: 50%; opacity: .6; }
