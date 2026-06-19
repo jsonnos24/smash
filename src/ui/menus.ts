@@ -4,6 +4,7 @@ import { type SaveData, saveSave } from "../persistence/save";
 export interface MenuCallbacks {
   onStart: (mode: Mode) => void;
   onResume: () => void;
+  onRetry: () => void;
   onMenu: () => void;
 }
 
@@ -71,6 +72,19 @@ export class Menus {
     h.textContent = "Paused";
     this.overlay.appendChild(h);
     this.overlay.appendChild(this.button("Resume", () => this.cb.onResume(), { "data-action": "resume" }));
+    this.overlay.appendChild(this.button("Main Menu", () => this.cb.onMenu(), { "data-action": "menu" }));
+  }
+
+  showResults(opts: { distance: number; best: number }): void {
+    this.overlay.replaceChildren();
+    this.overlay.style.display = "flex";
+    const h = document.createElement("h2");
+    h.textContent = "Run Over";
+    this.overlay.appendChild(h);
+    const p = document.createElement("p");
+    p.textContent = `Distance: ${opts.distance.toLocaleString("en-US")}m · Best: ${opts.best.toLocaleString("en-US")}m`;
+    this.overlay.appendChild(p);
+    this.overlay.appendChild(this.button("Play Again", () => this.cb.onRetry(), { "data-action": "retry" }));
     this.overlay.appendChild(this.button("Main Menu", () => this.cb.onMenu(), { "data-action": "menu" }));
   }
 

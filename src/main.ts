@@ -37,6 +37,7 @@ function bootstrap(): void {
 
   let session: Session | null = null;
   let save = loadSave();
+  let lastMode: Mode = "normal";
 
   const resize = () => scene.resize(window.innerWidth, window.innerHeight);
   window.addEventListener("resize", resize);
@@ -71,6 +72,7 @@ function bootstrap(): void {
         scene.sync(renderItems());
         scene.setScroll(session.state.distance, 0);
         hud.update(session.state, START_BALLS, session.checkpoint);
+        if (session.state.status !== "playing") endRun();
       }
     },
     render: () => scene.render(),
@@ -82,6 +84,7 @@ function bootstrap(): void {
       menus.hide();
       loop.resume();
     },
+    onRetry: () => startRun(lastMode),
     onMenu: () => {
       if (session) {
         save = recordRun(save, session.state.distance, session.state.score);
@@ -94,7 +97,19 @@ function bootstrap(): void {
     },
   });
 
+  function endRun(): void {
+    if (!session) return;
+    const s = session;
+    session = null;
+    save = recordRun(save, s.state.distance, s.state.score);
+    saveSave(save);
+    menus.setSave(save);
+    loop.pause();
+    menus.showResults({ distance: Math.round(s.state.distance), best: save.bestDistance });
+  }
+
   function startRun(mode: Mode): void {
+    lastMode = mode;
     audio.unlock();
     let theme = themeAt(0);
     scene.setTheme(theme);
@@ -110,7 +125,6 @@ function bootstrap(): void {
         scene.setTheme(theme);
         audio.playMusic(theme);
       },
-      onRespawn: () => scene.shake(0.6),
     });
     menus.hide();
     loop.resume();

@@ -53,13 +53,10 @@ describe("Session (endless)", () => {
     expect(s.state.balls).toBeLessThan(START_BALLS);
   });
 
-  it("Normal respawns at the last checkpoint with a refilled reserve when out of balls", () => {
+  it("Normal ends the run when the reserve is emptied", () => {
     const s = new Session(ROOMS, "normal", cam(), 1);
     for (let i = 0; i < START_BALLS + 2; i++) s.throwBall({ nx: 0, ny: 0 });
-    expect(s.state.balls).toBe(0);
-    s.update(0.016);
-    expect(s.state.balls).toBe(START_BALLS);
-    expect(s.state.distance).toBe(s.checkpoint);
+    expect(s.state.status).toBe("ended");
   });
 
   it("throwing costs one ball in Normal", () => {

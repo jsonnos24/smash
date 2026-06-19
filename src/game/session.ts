@@ -16,7 +16,6 @@ export interface SessionEvents {
   onShatter?: (kind: "obstacle" | "crystal", at: Vector3) => void;
   onCrash?: () => void;
   onCheckpoint?: (distance: number) => void;
-  onRespawn?: () => void;
 }
 
 interface WorldEntity {
@@ -100,14 +99,18 @@ export class Session {
   }
 
   throwBall(p: ScreenPoint): void {
+    if (this._state.status !== "playing") return;
     if (this._state.balls <= 0) return;
     const balls =
       this._state.mode === "casual" ? Math.max(1, this._state.balls - 1) : this._state.balls - 1;
-    this._state = { ...this._state, balls };
+    const status =
+      this._state.mode === "normal" && balls <= 0 ? "ended" : this._state.status;
+    this._state = { ...this._state, balls, status };
     this.balls.push(createThrow(this.nextId++, p, this.camera, THROW_SPEED));
   }
 
   update(dt: number): void {
+    if (this._state.status !== "playing") return;
     const newDistance = this._state.distance + BASE_SPEED * speedAt(this._state.distance) * dt;
     this._state = { ...this._state, distance: newDistance };
     this.generateAhead();
@@ -146,23 +149,6 @@ export class Session {
       this.events.onCheckpoint?.(cp);
     }
 
-    if (this._state.mode === "normal" && this._state.balls <= 0) this.respawn();
-  }
-
-  private respawn(): void {
-    this._state = {
-      ...this._state,
-      distance: this._checkpoint,
-      balls: START_BALLS,
-      status: "playing",
-      hitChain: 0,
-      streak: 1,
-    };
-    this.balls = [];
-    for (const e of this.entities) {
-      if (e.baseZ >= this._checkpoint) e.consumed = false;
-    }
-    this.events.onRespawn?.();
   }
 
   private resolveHit(collider: Collider): void {
