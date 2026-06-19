@@ -1,7 +1,7 @@
 import type { Theme } from "./types";
 
-export const START_BALLS = 15;
-export const MAX_BALLS = 25;
+export const START_BALLS = 20;
+export const MAX_BALLS = 40;
 export const CHECKPOINT_SPACING = 400;
 export const LOOKAHEAD = 130;
 
