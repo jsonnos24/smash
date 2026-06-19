@@ -4,6 +4,7 @@ import {
   Vector3, Color, LineSegments, BufferGeometry, Float32BufferAttribute, LineBasicMaterial,
 } from "three";
 import { THEME_COLORS } from "./themes";
+import { Scenery } from "./scenery";
 import type { Theme } from "../content/types";
 
 export interface RenderItem {
@@ -39,6 +40,7 @@ export class SceneManager {
   private corridorFloorGeom!: BufferGeometry;
   private corridorFloorMaterial!: LineBasicMaterial;
   private shakeT = 0;
+  private scenery!: Scenery;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true });
@@ -50,6 +52,7 @@ export class SceneManager {
     dir.position.set(2, 5, 1);
     this.scene.add(dir);
     this.buildCorridor();
+    this.scenery = new Scenery(this.scene);
     this.setTheme("crystalCavern");
   }
 
@@ -167,6 +170,7 @@ export class SceneManager {
 
     // Floor grid fades in over the last 30% of the level.
     this.corridorFloorMaterial.opacity = Math.min(1, Math.max(0, (progress - 0.7) / 0.3)) * 0.55;
+    this.scenery.update(distance);
   }
 
   shake(amount = 0.35): void {
@@ -187,6 +191,7 @@ export class SceneManager {
     if (this.corridorFloorMaterial) {
       this.corridorFloorMaterial.color.setHex(c.accent);
     }
+    this.scenery?.setTheme(theme);
   }
 
   resize(w: number, h: number): void {
@@ -304,6 +309,7 @@ export class SceneManager {
     this.corridorEdgeGeom.dispose();
     this.corridorFloorGeom.dispose();
     this.corridorFloorMaterial.dispose();
+    this.scenery.dispose();
     this.renderer.dispose();
   }
 }
