@@ -16,8 +16,8 @@ export const TIER2: WeaponId[] = ["shock", "ringFire", "spikeBall"];
 
 /** Returns the 3 options when the count reaches a milestone, else null. */
 export function upgradeOptionsAt(blueDiamonds: number): WeaponId[] | null {
-  if (blueDiamonds === 25) return TIER1;
-  if (blueDiamonds === 75) return TIER2;
+  if (blueDiamonds === 10) return TIER1;
+  if (blueDiamonds === 20) return TIER2;
   return null;
 }
 

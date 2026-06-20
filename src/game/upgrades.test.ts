@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { upgradeOptionsAt, weaponTargets, TIER1, TIER2 } from "./upgrades";
 
 describe("upgradeOptionsAt", () => {
-  it("offers tier 1 at 25 and tier 2 at 75, nothing otherwise", () => {
-    expect(upgradeOptionsAt(25)).toEqual(TIER1);
-    expect(upgradeOptionsAt(75)).toEqual(TIER2);
-    expect(upgradeOptionsAt(24)).toBeNull();
-    expect(upgradeOptionsAt(26)).toBeNull();
+  it("offers tier 1 at 10 and tier 2 at 20, nothing otherwise", () => {
+    expect(upgradeOptionsAt(10)).toEqual(TIER1);
+    expect(upgradeOptionsAt(20)).toEqual(TIER2);
+    expect(upgradeOptionsAt(9)).toBeNull();
+    expect(upgradeOptionsAt(11)).toBeNull();
     expect(upgradeOptionsAt(0)).toBeNull();
   });
 });
