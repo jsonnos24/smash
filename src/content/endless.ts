@@ -9,19 +9,19 @@ export const GATE_GAP = 12; // forward space a gate occupies before the next roo
 
 const THEMES: Theme[] = ["crystalCavern", "neonTunnel", "glassChapel"];
 
-/** Steeper difficulty ramp: reaches max (10) around ~1600m. */
+/** Difficulty ramp: rises steadily, reaching max (9) around ~2400m. */
 export function difficultyAt(distance: number): number {
-  return Math.min(10, Math.max(1, 1 + distance / 180));
+  return Math.min(9, Math.max(1, 1 + distance / 300));
 }
 
 /**
- * Forward speed: a gradual baseline ramp with distance (1.0 → 1.7 over ~1500m)
+ * Forward speed: a gentle baseline ramp with distance (1.0 → 1.4 over ~1800m)
  * plus brief eased surges on top. Smooth thanks to the variable-timestep loop.
  */
 export function speedAt(distance: number): number {
-  const base = Math.min(1.7, 1 + distance / 2200);
+  const base = Math.min(1.4, 1 + distance / 4500);
   const s = Math.max(0, Math.sin(distance * 0.04));
-  return base + 0.4 * s * s * s;
+  return base + 0.3 * s * s * s;
 }
 
 /** Theme cycles per checkpoint so variety returns without discrete levels. */
