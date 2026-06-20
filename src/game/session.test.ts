@@ -109,6 +109,14 @@ describe("Session (endless)", () => {
   });
 });
 
+describe("Session rogue mode", () => {
+  it("rogue: chooseUpgrade grants the weapon", () => {
+    const s = new Session(ROOMS, "rogue", cam(), 1);
+    s.chooseUpgrade("sword");
+    expect(s.state.weapons).toContain("sword");
+  });
+});
+
 describe("slideX", () => {
   it("oscillates around the base x", () => {
     expect(slideX(0, 0, 0, 2, 1.6)).toBeCloseTo(0, 6); // sin(0)=0

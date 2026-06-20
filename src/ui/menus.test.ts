@@ -12,6 +12,22 @@ describe("Menus", () => {
     expect(m.toggleMode()).toBe("casual");
     expect(JSON.parse(localStorage.getItem("smashhit.save")!).mode).toBe("casual");
   });
+  it("second toggle returns rogue, third returns normal", () => {
+    const m = new Menus(document.createElement("div"), defaultSave(), cbs());
+    m.toggleMode(); // normal -> casual
+    expect(m.toggleMode()).toBe("rogue"); // casual -> rogue
+    expect(m.toggleMode()).toBe("normal"); // rogue -> normal
+  });
+  it("showUpgrade renders 3 data-upgrade buttons and clicking calls cb with the id", () => {
+    const root = document.createElement("div");
+    const m = new Menus(root, defaultSave(), cbs());
+    const cb = vi.fn();
+    m.showUpgrade(["sword", "flameStick", "forceBlast"], cb);
+    const btns = root.querySelectorAll("[data-upgrade]");
+    expect(btns.length).toBe(3);
+    (btns[0] as HTMLButtonElement).click();
+    expect(cb).toHaveBeenCalledWith("sword");
+  });
   it("Play starts a run in the current mode", () => {
     const root = document.createElement("div");
     const cb = cbs();

@@ -1,4 +1,5 @@
 import type { Mode } from "../game/state";
+import { WEAPONS, type WeaponId } from "../game/upgrades";
 import { type SaveData, saveSave } from "../persistence/save";
 import { themeAt, difficultyAt, CHECKPOINT_SPACING } from "../content/endless";
 
@@ -28,7 +29,7 @@ export class Menus {
   }
 
   toggleMode(): Mode {
-    this._mode = this._mode === "normal" ? "casual" : "normal";
+    this._mode = this._mode === "normal" ? "casual" : this._mode === "casual" ? "rogue" : "normal";
     this.save = { ...this.save, mode: this._mode };
     saveSave(this.save);
     return this._mode;
@@ -125,6 +126,18 @@ export class Menus {
       );
     }
     this.overlay.appendChild(this.button("Back", () => this.showMain()));
+  }
+
+  showUpgrade(options: WeaponId[], pick: (id: WeaponId) => void): void {
+    this.overlay.replaceChildren();
+    this.overlay.style.display = "flex";
+    const h = document.createElement("h2");
+    h.textContent = "Choose an Upgrade";
+    this.overlay.appendChild(h);
+    for (const id of options) {
+      const w = WEAPONS[id];
+      this.overlay.appendChild(this.button(`${w.name} — ${w.desc}`, () => pick(id), { "data-upgrade": id }));
+    }
   }
 
   hide(): void {

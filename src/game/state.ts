@@ -1,4 +1,6 @@
-export type Mode = "normal" | "casual";
+import type { WeaponId } from "./upgrades";
+
+export type Mode = "normal" | "casual" | "rogue";
 export type RunStatus = "playing" | "ended" | "complete";
 
 export interface RunState {
@@ -11,6 +13,8 @@ export interface RunState {
   roomIndex: number;
   status: RunStatus;
   powerupT: number;
+  blueDiamonds: number;
+  weapons: WeaponId[];
 }
 
 export function streakMultiplier(hitChain: number): number {
@@ -28,5 +32,7 @@ export function createRunState(mode: Mode, startBalls: number): RunState {
     roomIndex: 0,
     status: "playing",
     powerupT: 0,
+    blueDiamonds: 0,
+    weapons: [],
   };
 }

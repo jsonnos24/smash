@@ -1,6 +1,7 @@
 import { Box3, PerspectiveCamera, Vector3 } from "three";
 import { createRunState, type Mode, type RunState } from "./state";
-import { applyObstacleHit, applyCrystalHit, applyMiss, applyCrash, applyDoorHit, applyPowerupHit } from "./economy";
+import { applyObstacleHit, applyCrystalHit, applyMiss, applyCrash, applyDoorHit, applyPowerupHit, applyWeaponKill } from "./economy";
+import { WEAPONS, upgradeOptionsAt, weaponTargets, type WeaponId } from "./upgrades";
 import { createThrow, type ScreenPoint } from "./throw";
 import { stepBall, detectHit, reflectBounds, type Ball, type Collider } from "../engine/physics";
 import { makeRng, pickRoom } from "../generator/levelBuilder";
@@ -27,6 +28,8 @@ export interface SessionEvents {
   onShatter?: (kind: "obstacle" | "crystal" | "door" | "powerup", at: Vector3) => void;
   onCrash?: () => void;
   onCheckpoint?: (distance: number) => void;
+  onUpgradeChoice?: (options: WeaponId[]) => void;
+  onWeaponFire?: (weapon: WeaponId) => void;
 }
 
 interface WorldEntity {
@@ -51,6 +54,7 @@ export class Session {
   private rng: () => number;
   private _checkpoint = 0;
   private _t = 0;
+  private weaponTimers = new Map<WeaponId, number>();
 
   constructor(
     private rooms: RoomTemplate[],
@@ -175,6 +179,14 @@ export class Session {
     this.generateAhead();
     this.entities = this.entities.filter((e) => e.baseZ >= newDistance - 30);
 
+    if (this._state.mode === "rogue" && this._state.weapons.length > 0) {
+      for (const w of this._state.weapons) {
+        let t = (this.weaponTimers.get(w) ?? WEAPONS[w].cooldown) - dt;
+        if (t <= 0) { this.fireWeapon(w); t = WEAPONS[w].cooldown; }
+        this.weaponTimers.set(w, t);
+      }
+    }
+
     const colliders = this.colliders();
     const surviving: Ball[] = [];
     for (const ball of this.balls) {
@@ -240,7 +252,38 @@ export class Session {
     }
     e.consumed = true;
     if (collider.kind === "obstacle") this._state = applyObstacleHit(this._state);
-    else this._state = applyCrystalHit(this._state);
+    else {
+      this._state = applyCrystalHit(this._state);
+      if (this._state.mode === "rogue") this.registerBlueDiamond();
+    }
     this.events.onShatter?.(collider.kind, at);
+  }
+
+  private registerBlueDiamond(): void {
+    const n = this._state.blueDiamonds + 1;
+    this._state = { ...this._state, blueDiamonds: n };
+    const opts = upgradeOptionsAt(n);
+    if (opts) this.events.onUpgradeChoice?.(opts);
+  }
+
+  chooseUpgrade(id: WeaponId): void {
+    if (this._state.weapons.includes(id)) return;
+    this._state = { ...this._state, weapons: [...this._state.weapons, id] };
+    this.weaponTimers.set(id, WEAPONS[id].cooldown);
+  }
+
+  private fireWeapon(w: WeaponId): void {
+    const candidates = this.entities
+      .filter((e) => !e.consumed && e.kind === "obstacle")
+      .map((e) => ({ id: e.id, worldZ: this.worldZ(e.baseZ), x: this.currentX(e) }));
+    const ids = weaponTargets(w, candidates, this.rng);
+    for (const id of ids) {
+      const e = this.entities.find((x) => x.id === id);
+      if (!e || e.consumed) continue;
+      e.consumed = true;
+      this._state = applyWeaponKill(this._state);
+      this.events.onShatter?.("obstacle", new Vector3(this.currentX(e), e.y, this.worldZ(e.baseZ)));
+    }
+    this.events.onWeaponFire?.(w);
   }
 }

@@ -14,6 +14,8 @@ describe("createRunState", () => {
       roomIndex: 0,
       status: "playing",
       powerupT: 0,
+      blueDiamonds: 0,
+      weapons: [],
     });
   });
 });

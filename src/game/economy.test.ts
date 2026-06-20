@@ -7,6 +7,7 @@ import {
   applyCrash,
   applyDoorHit,
   applyPowerupHit,
+  applyWeaponKill,
   OBSTACLE_POINTS,
   CRYSTAL_POINTS,
 } from "./economy";
@@ -96,6 +97,16 @@ describe("applyPowerupHit", () => {
     expect(s.balls).toBe(21);
     expect(s.score).toBe(150);
     expect(s.hitChain).toBe(1);
+  });
+});
+
+describe("applyWeaponKill", () => {
+  it("adds OBSTACLE_POINTS to score and leaves balls unchanged", () => {
+    const initial = createRunState("rogue", 20);
+    const s = applyWeaponKill(initial);
+    expect(s.score).toBe(OBSTACLE_POINTS);
+    expect(s.balls).toBe(20);
+    expect(s.hitChain).toBe(0); // streak unchanged
   });
 });
 

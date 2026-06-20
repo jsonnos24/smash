@@ -20,7 +20,7 @@ function isValid(d: unknown): d is SaveData {
   const o = d as Record<string, unknown>;
   return (
     o.version === 2 &&
-    (o.mode === "normal" || o.mode === "casual") &&
+    (o.mode === "normal" || o.mode === "casual" || o.mode === "rogue") &&
     typeof o.muted === "boolean" &&
     (o.quality === "auto" || o.quality === "low" || o.quality === "high") &&
     typeof o.bestDistance === "number" &&

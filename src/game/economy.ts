@@ -61,3 +61,8 @@ export function applyMiss(state: RunState): RunState {
   const hitChain = state.mode === "casual" ? Math.max(0, state.hitChain - 3) : 0;
   return { ...state, hitChain, streak: streakMultiplier(hitChain) };
 }
+
+/** A weapon destroying an obstacle: score only (no ball cost/refund, no streak). */
+export function applyWeaponKill(state: RunState): RunState {
+  return { ...state, score: state.score + OBSTACLE_POINTS };
+}

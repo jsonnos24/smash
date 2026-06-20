@@ -157,6 +157,15 @@ function bootstrap(): void {
         audio.playMusic(theme);
         audio.playSfx("checkpoint");
       },
+      onUpgradeChoice: (options) => {
+        loop.pause();
+        menus.showUpgrade(options, (id) => {
+          session?.chooseUpgrade(id);
+          menus.hide();
+          loop.resume();
+        });
+      },
+      onWeaponFire: () => audio.playSfx("powerup"),
     }, startDistance);
     menus.hide();
     loop.resume();

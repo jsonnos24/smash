@@ -41,4 +41,18 @@ describe("Hud", () => {
     const el = root.querySelector("[data-hud=streak]") as HTMLElement;
     expect(el.style.transform).toContain("scale(1.6)");
   });
+  it("shows diamond count and upgrade count in rogue mode", () => {
+    const root = document.createElement("div");
+    const hud = new Hud(root);
+    const state = { ...createRunState("rogue", 20), blueDiamonds: 12, weapons: ["sword" as const] };
+    hud.update(state, 20, 0);
+    expect(root.querySelector("[data-hud=rogue]")?.textContent).toContain("12");
+    expect(root.querySelector("[data-hud=rogue]")?.textContent).toContain("1 upgrades");
+  });
+  it("rogue element is empty in normal mode", () => {
+    const root = document.createElement("div");
+    const hud = new Hud(root);
+    hud.update(createRunState("normal", 20), 20, 0);
+    expect(root.querySelector("[data-hud=rogue]")?.textContent).toBe("");
+  });
 });

@@ -18,6 +18,7 @@ export class Hud {
       <div class="hud-powerup" data-hud="powerup"></div>
       <div class="hud-mode" data-hud="mode">NORMAL</div>
       <div class="hud-distance" data-hud="distance">0m · CP 0m</div>
+      <div class="hud-rogue" data-hud="rogue"></div>
       `;
     this.root.appendChild(this.el);
   }
@@ -40,6 +41,9 @@ export class Hud {
     q("powerup").textContent = state.powerupT > 0 ? `MULTIBALL ${Math.ceil(state.powerupT)}s` : "";
     q("mode").textContent = state.mode.toUpperCase();
     q("distance").textContent = `${Math.round(state.distance)}m · CP ${checkpoint}m`;
+    q("rogue").textContent = state.mode === "rogue"
+      ? `◆ ${state.blueDiamonds} · ${state.weapons.length} upgrades`
+      : "";
   }
 
   dispose(): void {
