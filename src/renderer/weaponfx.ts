@@ -135,6 +135,25 @@ export class WeaponFx {
   }
 
   private ember(local: Vector3[]): void {
+    // Always show a flaming staff strike from the player (visible even when nothing is in range).
+    const staff = new Mesh(
+      new BoxGeometry(0.2, 3.0, 0.2),
+      new MeshStandardMaterial({ color: 0xff8a30, emissive: 0xff4400, emissiveIntensity: 1.8, transparent: true }),
+    );
+    staff.position.set(0.5, -0.2, -2.6);
+    const flame = new Mesh(
+      new SphereGeometry(0.7, 12, 12),
+      new MeshStandardMaterial({ color: 0xffb050, emissive: 0xff5500, emissiveIntensity: 1.6, transparent: true, opacity: 0.6 }),
+    );
+    flame.position.set(0.5, 1.2, -2.6);
+    this.add([staff, flame], 0.55, (o, k) => {
+      o[0].rotation.z = 0.9 - k * 1.9; // swing down
+      o[1].position.copy((o[0] as Mesh).position).add(new Vector3(0, 1.4, 0));
+      o[1].scale.setScalar(1 + k * 1.5);
+      (o[0].material as MeshStandardMaterial).opacity = Math.max(0, 1 - k);
+      (o[1].material as MeshStandardMaterial).opacity = Math.max(0, 0.6 * (1 - k));
+    });
+    // Fire bursts on each struck object.
     for (const t of local) {
       const puff = new Mesh(
         new SphereGeometry(0.5, 10, 10),
