@@ -1,6 +1,6 @@
 import {
   Scene, Group, Mesh, MeshStandardMaterial,
-  ConeGeometry, BoxGeometry, BufferGeometry,
+  ConeGeometry, BoxGeometry, SphereGeometry, BufferGeometry,
   Float32BufferAttribute, Color,
 } from "three";
 import { THEME_COLORS } from "./themes";
@@ -197,39 +197,50 @@ export class Scenery {
   // ── glassChapel: hotel doorways scrolling past both sides ──────────────────
 
   private buildGlassChapel(): void {
-    const DOOR_W = 1.5;
-    const DOOR_H = 3.0;
-    const DOOR_D = 0.12;
+    const DOOR_W = 1.6; // width ALONG the hallway (z)
+    const DOOR_H = 3.0; // height (y)
+    const DOOR_T = 0.14; // thickness into the wall (x)
     const SPACING = 6;
     const NUM_DOORS = 12; // 6 per side
-    const PERIOD = NUM_DOORS / 2 * SPACING; // 36
+    const PERIOD = (NUM_DOORS / 2) * SPACING; // 36
     const FACTOR = 1.0;
 
     const doorMat = () =>
       new MeshStandardMaterial({
-        color: 0xffd080,
-        emissive: 0xc07820,
-        emissiveIntensity: 1.2,
-        roughness: 0.55,
-        metalness: 0.1,
-        transparent: true,
-        opacity: 0.9,
+        color: 0x6e4a2c, // brown
+        emissive: 0x1a0f06,
+        roughness: 0.85,
+        metalness: 0.05,
+      });
+    const knobMat = () =>
+      new MeshStandardMaterial({
+        color: 0xffd633, // yellow doorknob
+        emissive: 0x6b5200,
+        emissiveIntensity: 0.6,
+        roughness: 0.4,
+        metalness: 0.4,
       });
 
     const sides = [
       { x: -7.2, startOffset: 0 },
-      { x:  7.2, startOffset: SPACING / 2 }, // stagger right side by half-spacing
+      { x: 7.2, startOffset: SPACING / 2 }, // stagger right side by half-spacing
     ];
 
     for (const side of sides) {
+      // Inner face points toward the corridor centre.
+      const innerSign = side.x < 0 ? 1 : -1;
       for (let i = 0; i < NUM_DOORS / 2; i++) {
-        const geo = new BoxGeometry(DOOR_W, DOOR_H, DOOR_D);
-        const mesh = new Mesh(geo, doorMat());
-        mesh.position.set(side.x, FLOOR_Y + DOOR_H / 2, 0);
-        this.backdropGroup.add(mesh);
-        // base offset per door = i * spacing + side stagger
+        // Door lies flat on the side wall: thin in X, tall in Y, wide in Z.
+        const geo = new BoxGeometry(DOOR_T, DOOR_H, DOOR_W);
+        const door = new Mesh(geo, doorMat());
+        door.position.set(side.x, FLOOR_Y + DOOR_H / 2, 0);
+        // Yellow knob on the inner face, near the front edge, around handle height.
+        const knob = new Mesh(new SphereGeometry(0.12, 10, 10), knobMat());
+        knob.position.set(innerSign * (DOOR_T / 2 + 0.06), -0.4, DOOR_W * 0.34);
+        door.add(knob);
+        this.backdropGroup.add(door);
         const baseZ = i * SPACING + side.startOffset;
-        this.scrollMeshes.push({ mesh, baseZ, period: PERIOD, factor: FACTOR });
+        this.scrollMeshes.push({ mesh: door, baseZ, period: PERIOD, factor: FACTOR });
       }
     }
   }
