@@ -29,7 +29,7 @@ export interface SessionEvents {
   onCrash?: () => void;
   onCheckpoint?: (distance: number) => void;
   onUpgradeChoice?: (options: WeaponId[]) => void;
-  onWeaponFire?: (weapon: WeaponId) => void;
+  onWeaponFire?: (weapon: WeaponId, targets: Vector3[]) => void;
 }
 
 interface WorldEntity {
@@ -277,13 +277,16 @@ export class Session {
       .filter((e) => !e.consumed && e.kind === "obstacle")
       .map((e) => ({ id: e.id, worldZ: this.worldZ(e.baseZ), x: this.currentX(e) }));
     const ids = weaponTargets(w, candidates, this.rng);
+    const hits: Vector3[] = [];
     for (const id of ids) {
       const e = this.entities.find((x) => x.id === id);
       if (!e || e.consumed) continue;
       e.consumed = true;
       this._state = applyWeaponKill(this._state);
-      this.events.onShatter?.("obstacle", new Vector3(this.currentX(e), e.y, this.worldZ(e.baseZ)));
+      const at = new Vector3(this.currentX(e), e.y, this.worldZ(e.baseZ));
+      this.events.onShatter?.("obstacle", at);
+      hits.push(at.clone());
     }
-    this.events.onWeaponFire?.(w);
+    this.events.onWeaponFire?.(w, hits);
   }
 }

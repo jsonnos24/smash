@@ -2,6 +2,7 @@ import "./ui/styles.css";
 import { Vector3 } from "three";
 import { SceneManager, type RenderItem } from "./renderer/scene";
 import { ShatterField } from "./renderer/shatter";
+import { WeaponFx } from "./renderer/weaponfx";
 import { GameLoop } from "./engine/loop";
 import { Session } from "./game/session";
 import { Hud } from "./ui/hud";
@@ -32,6 +33,7 @@ function bootstrap(): void {
 
   const scene = new SceneManager(canvas);
   const shatter = new ShatterField(scene.scene);
+  const weaponFx = new WeaponFx(scene.scene, scene.camera);
   const hud = new Hud(app);
   const juice = new Juice(app);
   const audio = new AudioManager({ muted: loadSave().muted });
@@ -73,6 +75,8 @@ function bootstrap(): void {
       session?.update(dt);
       shatter.update(dt);
       juice.update(dt);
+      weaponFx.update(dt);
+      weaponFx.setOwned(session ? session.state.weapons : []);
       if (session) {
         scene.sync(renderItems());
         scene.setScroll(session.state.distance, 0);
@@ -165,7 +169,7 @@ function bootstrap(): void {
           loop.resume();
         });
       },
-      onWeaponFire: () => audio.playSfx("powerup"),
+      onWeaponFire: (w, targets) => { audio.playSfx("powerup"); weaponFx.fire(w, targets); },
     }, startDistance);
     menus.hide();
     loop.resume();
