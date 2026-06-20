@@ -12,7 +12,7 @@ export interface SaveData {
 }
 
 export function defaultSave(): SaveData {
-  return { version: 2, mode: "normal", muted: false, quality: "auto", bestDistance: 0, bestScore: 0 };
+  return { version: 2, mode: "rogue", muted: false, quality: "auto", bestDistance: 0, bestScore: 0 };
 }
 
 function isValid(d: unknown): d is SaveData {

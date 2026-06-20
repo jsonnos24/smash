@@ -8,15 +8,15 @@ const cbs = () => ({ onStart: vi.fn(), onResume: vi.fn(), onRetry: vi.fn(), onMe
 describe("Menus", () => {
   it("toggles mode and persists it", () => {
     const m = new Menus(document.createElement("div"), defaultSave(), cbs());
-    expect(m.mode).toBe("normal");
-    expect(m.toggleMode()).toBe("casual");
-    expect(JSON.parse(localStorage.getItem("smashhit.save")!).mode).toBe("casual");
+    expect(m.mode).toBe("rogue"); // rogue is the default
+    expect(m.toggleMode()).toBe("normal");
+    expect(JSON.parse(localStorage.getItem("smashhit.save")!).mode).toBe("normal");
   });
-  it("second toggle returns rogue, third returns normal", () => {
+  it("cycles rogue -> normal -> casual -> rogue", () => {
     const m = new Menus(document.createElement("div"), defaultSave(), cbs());
-    m.toggleMode(); // normal -> casual
-    expect(m.toggleMode()).toBe("rogue"); // casual -> rogue
     expect(m.toggleMode()).toBe("normal"); // rogue -> normal
+    expect(m.toggleMode()).toBe("casual"); // normal -> casual
+    expect(m.toggleMode()).toBe("rogue"); // casual -> rogue
   });
   it("showUpgrade renders 3 data-upgrade buttons and clicking calls cb with the id", () => {
     const root = document.createElement("div");
@@ -34,7 +34,7 @@ describe("Menus", () => {
     const m = new Menus(root, defaultSave(), cb);
     m.showMain();
     (root.querySelector("[data-action=play]") as HTMLButtonElement).click();
-    expect(cb.onStart).toHaveBeenCalledWith("normal");
+    expect(cb.onStart).toHaveBeenCalledWith("rogue");
   });
   it("shows best distance on the main menu", () => {
     const root = document.createElement("div");
