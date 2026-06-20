@@ -22,6 +22,7 @@ function disposeObj(o: Mesh | LineSegments): void {
 export class WeaponFx {
   private group = new Group();
   private orbs: Mesh[] = [];
+  private orbHalos: Mesh[] = [];
   private orbAngle = 0;
   private fx: Fx[] = [];
 
@@ -30,12 +31,19 @@ export class WeaponFx {
     if (!cam.parent) scene.add(cam); // ensure the camera (and its child effects) are in the graph
     for (let i = 0; i < 3; i++) {
       const orb = new Mesh(
-        new SphereGeometry(0.35, 12, 12),
-        new MeshStandardMaterial({ color: 0xff7a1a, emissive: 0xff5500, emissiveIntensity: 1 }),
+        new SphereGeometry(0.45, 14, 14),
+        new MeshStandardMaterial({ color: 0xffb060, emissive: 0xff5500, emissiveIntensity: 1.6 }),
+      );
+      const halo = new Mesh(
+        new SphereGeometry(0.9, 14, 14),
+        new MeshStandardMaterial({ color: 0xff7a1a, emissive: 0xff5500, emissiveIntensity: 0.7, transparent: true, opacity: 0.3 }),
       );
       orb.visible = false;
+      halo.visible = false;
       this.group.add(orb);
+      this.group.add(halo);
       this.orbs.push(orb);
+      this.orbHalos.push(halo);
     }
   }
 
@@ -47,6 +55,7 @@ export class WeaponFx {
   setOwned(weapons: WeaponId[]): void {
     const ring = weapons.includes("ringFire");
     for (const o of this.orbs) o.visible = ring;
+    for (const h of this.orbHalos) h.visible = ring;
   }
 
   fire(weapon: WeaponId, targets: Vector3[]): void {
@@ -64,11 +73,12 @@ export class WeaponFx {
 
   update(dt: number): void {
     if (this.orbs[0]?.visible) {
-      this.orbAngle += dt * 3;
+      this.orbAngle += dt * 4;
       const n = this.orbs.length;
       this.orbs.forEach((o, i) => {
         const a = this.orbAngle + (i * Math.PI * 2) / n;
-        o.position.set(Math.cos(a) * 2.3, Math.sin(a) * 2.3, -2.6);
+        o.position.set(Math.cos(a) * 2.4, Math.sin(a) * 2.4, -2.6);
+        this.orbHalos[i].position.copy(o.position);
       });
     }
     for (let i = this.fx.length - 1; i >= 0; i--) {
@@ -91,76 +101,93 @@ export class WeaponFx {
 
   private sword(): void {
     const blade = new Mesh(
-      new BoxGeometry(0.16, 3.4, 0.16),
-      new MeshStandardMaterial({ color: 0xcfe8ff, emissive: 0x88bbff, emissiveIntensity: 0.9, transparent: true }),
+      new BoxGeometry(0.22, 4.0, 0.22),
+      new MeshStandardMaterial({ color: 0xeaf4ff, emissive: 0xaaccff, emissiveIntensity: 1.4, transparent: true }),
     );
     blade.position.set(0, 0, -3);
-    this.add([blade], 0.28, (o, k) => {
-      o[0].rotation.z = -1.3 + k * 2.6;
-      (o[0].material as MeshStandardMaterial).opacity = 1 - k;
+    this.add([blade], 0.5, (o, k) => {
+      o[0].rotation.z = -1.6 + k * 3.2;
+      o[0].scale.setScalar(1 + k * 0.6);
+      (o[0].material as MeshStandardMaterial).opacity = Math.max(0, 1 - k);
     });
   }
 
   private blast(): void {
-    const ball = new Mesh(
-      new SphereGeometry(0.6, 16, 16),
-      new MeshStandardMaterial({ color: 0x8ff0ff, emissive: 0x33e0ff, emissiveIntensity: 1, transparent: true }),
+    const core = new Mesh(
+      new SphereGeometry(0.7, 16, 16),
+      new MeshStandardMaterial({ color: 0xaff6ff, emissive: 0x44e6ff, emissiveIntensity: 1.6, transparent: true }),
     );
-    ball.position.set(0, 0, -2);
-    this.add([ball], 0.5, (o, k) => {
-      o[0].position.z = -2 - k * 55;
-      o[0].scale.setScalar(1 + k * 0.8);
-      (o[0].material as MeshStandardMaterial).opacity = 1 - k * 0.6;
+    const halo = new Mesh(
+      new SphereGeometry(1.3, 16, 16),
+      new MeshStandardMaterial({ color: 0x33e0ff, emissive: 0x33e0ff, emissiveIntensity: 0.8, transparent: true, opacity: 0.35 }),
+    );
+    core.position.set(0, 0, -2);
+    halo.position.set(0, 0, -2);
+    this.add([core, halo], 0.85, (o, k) => {
+      const z = -2 - k * 70;
+      o[0].position.z = z;
+      o[1].position.z = z;
+      o[0].scale.setScalar(1 + k);
+      o[1].scale.setScalar(1 + k * 1.6);
+      (o[0].material as MeshStandardMaterial).opacity = Math.max(0, 1 - k * 0.7);
+      (o[1].material as MeshStandardMaterial).opacity = Math.max(0, 0.35 * (1 - k));
     });
   }
 
   private ember(local: Vector3[]): void {
     for (const t of local) {
       const puff = new Mesh(
-        new SphereGeometry(0.4, 10, 10),
-        new MeshStandardMaterial({ color: 0xff7a1a, emissive: 0xff5500, emissiveIntensity: 1, transparent: true }),
+        new SphereGeometry(0.5, 10, 10),
+        new MeshStandardMaterial({ color: 0xffa040, emissive: 0xff5500, emissiveIntensity: 1.5, transparent: true }),
       );
       puff.position.copy(t);
-      this.add([puff], 0.45, (o, k) => {
-        o[0].scale.setScalar(0.5 + k * 2);
-        (o[0].material as MeshStandardMaterial).opacity = 1 - k;
+      const baseY = t.y;
+      this.add([puff], 0.7, (o, k) => {
+        o[0].scale.setScalar(0.5 + k * 3);
+        o[0].position.y = baseY + k * 1.5;
+        (o[0].material as MeshStandardMaterial).opacity = Math.max(0, 1 - k);
       });
     }
   }
 
   private shock(local: Vector3[]): void {
-    for (const t of local) {
-      const from = new Vector3(0, 0, -0.5);
+    const buildBolt = (from: Vector3, to: Vector3): LineSegments => {
       const pts: number[] = [];
       const SEG = 6;
       let prev = from.clone();
       for (let i = 1; i <= SEG; i++) {
         const f = i / SEG;
-        const p = from.clone().lerp(t, f);
+        const p = from.clone().lerp(to, f);
         if (i < SEG) { p.x += (Math.random() - 0.5) * 0.7; p.y += (Math.random() - 0.5) * 0.7; }
         pts.push(prev.x, prev.y, prev.z, p.x, p.y, p.z);
         prev = p;
       }
       const g = new BufferGeometry();
       g.setAttribute("position", new Float32BufferAttribute(pts, 3));
-      const line = new LineSegments(g, new LineBasicMaterial({ color: 0x9fdcff, transparent: true }));
-      this.add([line], 0.22, (o, k) => {
+      return new LineSegments(g, new LineBasicMaterial({ color: 0xcfeaff, transparent: true }));
+    };
+    for (const t of local) {
+      const from = new Vector3(0, 0, -0.5);
+      const line1 = buildBolt(from, t);
+      const line2 = buildBolt(from, t);
+      this.add([line1, line2], 0.4, (o, k) => {
         (o[0].material as LineBasicMaterial).opacity = 1 - k;
+        (o[1].material as LineBasicMaterial).opacity = 1 - k;
       });
     }
   }
 
   private spike(): void {
     const ball = new Mesh(
-      new OctahedronGeometry(0.7),
-      new MeshStandardMaterial({ color: 0x999999, emissive: 0x330808, metalness: 0.8, roughness: 0.3 }),
+      new OctahedronGeometry(0.85),
+      new MeshStandardMaterial({ color: 0xaaaaaa, emissive: 0x551111, emissiveIntensity: 0.6, metalness: 0.8, roughness: 0.3 }),
     );
     const chain = new LineSegments(
       new BufferGeometry().setAttribute("position", new Float32BufferAttribute([0, 0, -0.5, 0, 0, -2], 3)),
-      new LineBasicMaterial({ color: 0xbbbbbb }),
+      new LineBasicMaterial({ color: 0xdddddd }),
     );
-    this.add([ball, chain], 0.8, (o, k) => {
-      const z = -2 - Math.sin(Math.min(1, k) * Math.PI) * 55; // out then snap back (tape-measure)
+    this.add([ball, chain], 1.1, (o, k) => {
+      const z = -2 - Math.sin(Math.min(1, k) * Math.PI) * 70;
       o[0].position.set(0, 0, z);
       o[0].rotation.x += 0.4;
       o[0].rotation.y += 0.3;
@@ -175,5 +202,7 @@ export class WeaponFx {
     this.fx = [];
     for (const o of this.orbs) disposeObj(o);
     this.orbs = [];
+    for (const h of this.orbHalos) disposeObj(h);
+    this.orbHalos = [];
   }
 }

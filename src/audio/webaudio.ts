@@ -56,23 +56,31 @@ export class WebAudioBackend implements AudioBackend {
   }
 
   private glass(ctx: AudioContext, t: number): void {
-    const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuffer(ctx, 0.18);
-    const hp = ctx.createBiquadFilter();
-    hp.type = "highpass"; hp.frequency.value = 3200;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.55, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-    src.connect(hp); hp.connect(g); g.connect(this.master!);
-    src.start(t); src.stop(t + 0.18);
-    for (const f of [5200, 6900]) {
-      const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = f;
-      const og = ctx.createGain();
-      og.gain.setValueAtTime(0.0001, t);
-      og.gain.exponentialRampToValueAtTime(0.1, t + 0.005);
-      og.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-      o.connect(og); og.connect(this.master!);
-      o.start(t); o.stop(t + 0.13);
+    // sharp initial crack
+    const crack = ctx.createBufferSource();
+    crack.buffer = this.noiseBuffer(ctx, 0.06);
+    const chp = ctx.createBiquadFilter();
+    chp.type = "highpass";
+    chp.frequency.value = 2500;
+    const cg = ctx.createGain();
+    cg.gain.setValueAtTime(0.6, t);
+    cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    crack.connect(chp); chp.connect(cg); cg.connect(this.master!);
+    crack.start(t); crack.stop(t + 0.06);
+    // cascade of tinkling shard partials, varied pitch/onset/decay
+    for (let i = 0; i < 7; i++) {
+      const f = 2200 + Math.random() * 5000;
+      const start = t + Math.random() * 0.07;
+      const dur = 0.08 + Math.random() * 0.16;
+      const o = ctx.createOscillator();
+      o.type = Math.random() < 0.5 ? "triangle" : "sine";
+      o.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.05 + Math.random() * 0.06, start + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      o.connect(g); g.connect(this.master!);
+      o.start(start); o.stop(start + dur + 0.02);
     }
   }
 

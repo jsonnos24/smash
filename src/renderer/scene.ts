@@ -303,23 +303,36 @@ export class SceneManager {
   }
 
   private makeCracks(size: number): LineSegments {
-    const z = 0.18; // just in front of the panel's front face
+    const z = 0.18;
     const pts: number[] = [];
-    const spokes = 6;
-    for (let i = 0; i < spokes; i++) {
-      const a = (i / spokes) * Math.PI * 2 + 0.3;
-      const midR = size * 0.5;
-      const endR = size * 0.95;
-      const mx = Math.cos(a) * midR + (Math.random() - 0.5) * size * 0.25;
-      const my = Math.sin(a) * midR + (Math.random() - 0.5) * size * 0.25;
-      const ex = Math.cos(a + 0.25) * endR;
-      const ey = Math.sin(a + 0.25) * endR;
-      // center → jagged mid, then mid → edge (two segments per spoke)
-      pts.push(0, 0, z, mx, my, z, mx, my, z, ex, ey, z);
+    const radials = 9;
+    const angles: number[] = [];
+    for (let i = 0; i < radials; i++) {
+      const a = (i / radials) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+      angles.push(a);
+      const steps = 4;
+      let px = 0, py = 0;
+      for (let s = 1; s <= steps; s++) {
+        const r = (s / steps) * size * 0.95;
+        const jitter = (Math.random() - 0.5) * size * 0.18;
+        const nx = Math.cos(a) * r + Math.cos(a + Math.PI / 2) * jitter;
+        const ny = Math.sin(a) * r + Math.sin(a + Math.PI / 2) * jitter;
+        pts.push(px, py, z, nx, ny, z);
+        px = nx; py = ny;
+      }
+    }
+    for (const ringR of [0.4, 0.72]) {
+      for (let i = 0; i < radials; i++) {
+        const a1 = angles[i];
+        const a2 = angles[(i + 1) % radials];
+        const r1 = ringR * size * (0.9 + Math.random() * 0.2);
+        const r2 = ringR * size * (0.9 + Math.random() * 0.2);
+        pts.push(Math.cos(a1) * r1, Math.sin(a1) * r1, z, Math.cos(a2) * r2, Math.sin(a2) * r2, z);
+      }
     }
     const g = new BufferGeometry();
     g.setAttribute("position", new Float32BufferAttribute(pts, 3));
-    const m = new LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+    const m = new LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
     return new LineSegments(g, m);
   }
 
