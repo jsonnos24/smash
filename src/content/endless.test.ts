@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { difficultyAt, speedAt, pathOffsetX, pathOffsetY } from "./endless";
+import { difficultyAt, speedAt, pathOffsetX, pathOffsetY, trackSlope } from "./endless";
 
 describe("difficultyAt", () => {
   it("starts at 1, rises monotonically, and caps at 9", () => {
@@ -9,13 +9,39 @@ describe("difficultyAt", () => {
   });
 });
 
+describe("trackSlope", () => {
+  it("is positive while the track climbs and negative while it descends", () => {
+    // find a clearly climbing sample and a clearly descending sample
+    let climbed = false, descended = false;
+    for (let d = 50; d < 1000; d += 5) {
+      if (trackSlope(d) > 0.01) climbed = true;
+      if (trackSlope(d) < -0.01) descended = true;
+    }
+    expect(climbed).toBe(true);
+    expect(descended).toBe(true);
+  });
+});
+
 describe("speedAt", () => {
   it("starts near 1 and the baseline rises with distance, capped", () => {
     expect(speedAt(0)).toBeGreaterThanOrEqual(1);
     expect(speedAt(0)).toBeLessThan(1.5);
-    // far out, the baseline has risen toward its cap and stays bounded
     expect(speedAt(5000)).toBeGreaterThanOrEqual(1.4);
-    expect(speedAt(5000)).toBeLessThanOrEqual(1.4 + 0.3 + 1e-9);
+    expect(speedAt(5000)).toBeLessThanOrEqual(1.4 + 0.45 + 1e-9);
+  });
+
+  it("never surges above the baseline while climbing, but surges while descending", () => {
+    const baseline = (d: number) => Math.min(1.4, 1 + d / 4500);
+    let sawDescentSurge = false;
+    for (let d = 50; d < 1500; d += 5) {
+      if (trackSlope(d) >= 0) {
+        // climbing or flat → no surge above baseline
+        expect(speedAt(d)).toBeCloseTo(baseline(d), 6);
+      } else {
+        if (speedAt(d) > baseline(d) + 0.05) sawDescentSurge = true;
+      }
+    }
+    expect(sawDescentSurge).toBe(true);
   });
 });
 
