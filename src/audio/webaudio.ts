@@ -55,6 +55,23 @@ export class WebAudioBackend implements AudioBackend {
     src.start(t); src.stop(t + 0.27);
   }
 
+  private loopWhoosh(ctx: AudioContext, t: number): void {
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer(ctx, 0.7);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.setValueAtTime(500, t);
+    bp.frequency.exponentialRampToValueAtTime(1800, t + 0.3);
+    bp.frequency.exponentialRampToValueAtTime(300, t + 0.65);
+    bp.Q.value = 1.0;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.6, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.68);
+    src.connect(bp); bp.connect(g); g.connect(this.master!);
+    src.start(t); src.stop(t + 0.72);
+  }
+
   private glass(ctx: AudioContext, t: number): void {
     // sharp initial crack
     const crack = ctx.createBufferSource();
@@ -126,6 +143,7 @@ export class WebAudioBackend implements AudioBackend {
       case "crash": this.thud(ctx, t); break;
       case "powerup": this.chime(ctx, t, [523, 659, 784, 1047]); break;
       case "checkpoint": this.chime(ctx, t, [659, 988]); break;
+      case "loop": this.loopWhoosh(ctx, t); break;
     }
   }
 

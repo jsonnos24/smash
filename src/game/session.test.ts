@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
 import { Session, slideX } from "./session";
 import { ROOMS } from "../content/rooms";
-import { START_BALLS, CHECKPOINT_SPACING } from "../content/endless";
+import { START_BALLS, CHECKPOINT_SPACING, pathOffsetY, LOOP_LENGTH, loopPhase } from "../content/endless";
 
 function cam(): PerspectiveCamera {
   const c = new PerspectiveCamera(60, 1, 0.1, 1000);
@@ -13,12 +13,27 @@ function cam(): PerspectiveCamera {
 }
 
 describe("Session (endless)", () => {
-  it("generates rooms ahead on construction and starts playing", () => {
+  it("generates rooms ahead and starts playing", () => {
     const s = new Session(ROOMS, "casual", cam(), 1);
     expect(s.state.status).toBe("playing");
     expect(s.state.balls).toBe(START_BALLS);
     expect(s.liveBalls.length).toBe(0);
+    // intro loop clears the very start; advance past it, then content appears
+    for (let i = 0; i < 200 && s.state.distance < LOOP_LENGTH + 20; i++) s.update(0.1);
     expect(s.colliders().length).toBeGreaterThan(0);
+  });
+
+  it("keeps the intro loop stretch free of obstacles and gates", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    // at distance 0 the active window covers the intro loop; nothing should be there
+    expect(s.colliders().length).toBe(0);
+    // advancing into the loop stays clear until past LOOP_LENGTH
+    for (let i = 0; i < 5; i++) {
+      s.update(0.1);
+      if (s.state.distance < LOOP_LENGTH - 5) {
+        expect(s.colliders().length).toBe(0);
+      }
+    }
   });
 
   it("advances distance over time", () => {
@@ -107,6 +122,17 @@ describe("Session (endless)", () => {
     expect(s.checkpoint).toBe(800);
     expect(s.colliders().length).toBeGreaterThan(0); // content generated around the start point
   });
+
+  it("never exposes an obstacle or gate inside any loop stretch", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    for (let i = 0; i < 4000; i++) {
+      for (const c of s.colliders()) {
+        const baseZ = s.state.distance - c.box.getCenter(new Vector3()).z;
+        expect(loopPhase(baseZ)).toBeNull();
+      }
+      s.update(0.1);
+    }
+  });
 });
 
 describe("Session rogue mode", () => {
@@ -123,4 +149,38 @@ describe("slideX", () => {
     const v = slideX(1, 0, Math.PI / (2 * 1.6), 2, 1.6); // sin(pi/2)=1 → 1 + 2
     expect(v).toBeCloseTo(3, 5);
   });
+});
+
+it("fires onLoopStart when entering a loop (intro loop fires immediately)", () => {
+  let starts = 0;
+  const s = new Session(ROOMS, "casual", cam(), 1, { onLoopStart: () => { starts++; } });
+  s.update(0.1); // already inside the intro loop at distance ~0
+  expect(starts).toBe(1);
+  // run until we leave the intro loop and hit the next periodic loop; it fires again
+  for (let i = 0; i < 20000 && starts < 2; i++) s.update(0.05);
+  expect(starts).toBe(2);
+});
+
+it("entities ride the vertical hills as the player advances", () => {
+  const s = new Session(ROOMS, "casual", cam(), 1, {}, 1570); // hilly distance, past loop at [1500,1560)
+  const c0 = s.colliders().find((c) => c.kind === "obstacle");
+  expect(c0).toBeDefined();
+  const id = c0!.id;
+  const z0 = c0!.box.getCenter(new Vector3()).z;
+  const d0 = s.state.distance;
+  const y0 = c0!.box.getCenter(new Vector3()).y;
+
+  s.update(0.05); // small step: same entity still active, distance advanced
+
+  const c1 = s.colliders().find((c) => c.id === id);
+  expect(c1).toBeDefined();
+  const d1 = s.state.distance;
+  const y1 = c1!.box.getCenter(new Vector3()).y;
+
+  const baseZ = d0 - z0; // worldZ = distance - baseZ  ⇒  baseZ = distance - worldZ (constant)
+  const expectedDelta =
+    (pathOffsetY(baseZ) - pathOffsetY(d1)) - (pathOffsetY(baseZ) - pathOffsetY(d0));
+  expect(y1 - y0).toBeCloseTo(expectedDelta, 4);
+  // and the hill actually moved it (non-trivial delta at this distance)
+  expect(Math.abs(y1 - y0)).toBeGreaterThan(0);
 });

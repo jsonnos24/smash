@@ -5,7 +5,7 @@ import { WEAPONS, upgradeOptionsAt, weaponTargets, type WeaponId } from "./upgra
 import { createThrow, type ScreenPoint } from "./throw";
 import { stepBall, detectHit, reflectBounds, type Ball, type Collider } from "../engine/physics";
 import { makeRng, pickRoom } from "../generator/levelBuilder";
-import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP, pathOffsetX } from "../content/endless";
+import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP, pathOffsetX, pathOffsetY, loopPhase, LOOP_LENGTH, LOOP_INTERVAL } from "../content/endless";
 import type { RoomTemplate } from "../content/rooms";
 
 const BASE_SPEED = 9;
@@ -30,6 +30,7 @@ export interface SessionEvents {
   onCheckpoint?: (distance: number) => void;
   onUpgradeChoice?: (options: WeaponId[]) => void;
   onWeaponFire?: (weapon: WeaponId, targets: Vector3[]) => void;
+  onLoopStart?: () => void;
 }
 
 interface WorldEntity {
@@ -55,6 +56,7 @@ export class Session {
   private _checkpoint = 0;
   private _t = 0;
   private weaponTimers = new Map<WeaponId, number>();
+  private _inLoop = false;
 
   constructor(
     private rooms: RoomTemplate[],
@@ -105,12 +107,20 @@ export class Session {
 
   private generateAhead(): void {
     while (this.frontZ < this._state.distance + LOOKAHEAD) {
+      if (loopPhase(this.frontZ) !== null) {
+        // Clear corridor through the loop: jump to its end, no entities, no gate.
+        const start = Math.floor(this.frontZ / LOOP_INTERVAL) * LOOP_INTERVAL;
+        this.frontZ = start + LOOP_LENGTH;
+        continue;
+      }
       const tmpl = pickRoom(this.rooms, difficultyAt(this.frontZ), this.rng);
       for (const e of tmpl.entities) {
+        const baseZ = this.frontZ + e.z;
+        if (loopPhase(baseZ) !== null) continue; // entity falls inside a loop window — skip it
         this.entities.push({
           id: this.nextEntityId++,
           kind: e.kind,
-          baseZ: this.frontZ + e.z,
+          baseZ,
           x: e.x,
           y: e.y,
           size: e.size,
@@ -120,7 +130,9 @@ export class Session {
         });
       }
       this.frontZ += tmpl.length;
-      this.pushGate(this.frontZ);
+      if (loopPhase(this.frontZ) === null) {
+        this.pushGate(this.frontZ); // only push gate when the gate position is outside a loop window
+      }
       this.frontZ += GATE_GAP;
     }
   }
@@ -132,11 +144,12 @@ export class Session {
       const z = this.worldZ(e.baseZ);
       if (z < ACTIVE_FAR || z > ACTIVE_NEAR) continue;
       const ex = this.currentX(e);
+      const ey = this.currentY(e);
       const h = e.size;
       out.push({
         id: e.id,
         kind: e.kind,
-        box: new Box3(new Vector3(ex - h, e.y - h, z - h), new Vector3(ex + h, e.y + h, z + h)),
+        box: new Box3(new Vector3(ex - h, ey - h, z - h), new Vector3(ex + h, ey + h, z + h)),
         damaged: e.kind === "door" && e.hits < DOOR_HITS,
         spin: e.motion === "spin" ? this._t * SPIN_SPEED : undefined,
       });
@@ -147,6 +160,10 @@ export class Session {
   private currentX(e: WorldEntity): number {
     const base = e.motion === "slide" ? slideX(e.x, e.baseZ, this._t) : e.x;
     return base + (pathOffsetX(e.baseZ) - pathOffsetX(this._state.distance));
+  }
+
+  private currentY(e: WorldEntity): number {
+    return e.y + (pathOffsetY(e.baseZ) - pathOffsetY(this._state.distance));
   }
 
   throwBall(p: ScreenPoint): void {
@@ -176,6 +193,9 @@ export class Session {
     this._t += dt;
     const newDistance = this._state.distance + BASE_SPEED * speedAt(this._state.distance) * dt;
     this._state = { ...this._state, distance: newDistance };
+    const inLoop = loopPhase(newDistance) !== null;
+    if (inLoop && !this._inLoop) this.events.onLoopStart?.();
+    this._inLoop = inLoop;
     this.generateAhead();
     this.entities = this.entities.filter((e) => e.baseZ >= newDistance - 30);
 
@@ -235,7 +255,7 @@ export class Session {
   private resolveHit(collider: Collider): void {
     const e = this.entities.find((x) => x.id === collider.id);
     if (!e || e.consumed) return;
-    const at = new Vector3(this.currentX(e), e.y, this.worldZ(e.baseZ));
+    const at = new Vector3(this.currentX(e), this.currentY(e), this.worldZ(e.baseZ));
     if (e.kind === "door") {
       e.hits -= 1;
       const broke = e.hits <= 0;
@@ -283,7 +303,7 @@ export class Session {
       if (!e || e.consumed) continue;
       e.consumed = true;
       this._state = applyWeaponKill(this._state);
-      const at = new Vector3(this.currentX(e), e.y, this.worldZ(e.baseZ));
+      const at = new Vector3(this.currentX(e), this.currentY(e), this.worldZ(e.baseZ));
       this.events.onShatter?.("obstacle", at);
       hits.push(at.clone());
     }

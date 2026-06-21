@@ -170,6 +170,7 @@ function bootstrap(): void {
         });
       },
       onWeaponFire: (w, targets) => { audio.playSfx("powerup"); weaponFx.fire(w, targets); },
+      onLoopStart: () => { audio.playSfx("loop"); },
     }, startDistance);
     menus.hide();
     loop.resume();
