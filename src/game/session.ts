@@ -115,10 +115,12 @@ export class Session {
       }
       const tmpl = pickRoom(this.rooms, difficultyAt(this.frontZ), this.rng);
       for (const e of tmpl.entities) {
+        const baseZ = this.frontZ + e.z;
+        if (loopPhase(baseZ) !== null) continue; // entity falls inside a loop window — skip it
         this.entities.push({
           id: this.nextEntityId++,
           kind: e.kind,
-          baseZ: this.frontZ + e.z,
+          baseZ,
           x: e.x,
           y: e.y,
           size: e.size,
@@ -128,7 +130,9 @@ export class Session {
         });
       }
       this.frontZ += tmpl.length;
-      this.pushGate(this.frontZ);
+      if (loopPhase(this.frontZ) === null) {
+        this.pushGate(this.frontZ); // only push gate when the gate position is outside a loop window
+      }
       this.frontZ += GATE_GAP;
     }
   }

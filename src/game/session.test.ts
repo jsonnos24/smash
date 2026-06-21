@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
 import { Session, slideX } from "./session";
 import { ROOMS } from "../content/rooms";
-import { START_BALLS, CHECKPOINT_SPACING, pathOffsetY, LOOP_LENGTH } from "../content/endless";
+import { START_BALLS, CHECKPOINT_SPACING, pathOffsetY, LOOP_LENGTH, loopPhase } from "../content/endless";
 
 function cam(): PerspectiveCamera {
   const c = new PerspectiveCamera(60, 1, 0.1, 1000);
@@ -121,6 +121,17 @@ describe("Session (endless)", () => {
     expect(s.state.distance).toBe(800);
     expect(s.checkpoint).toBe(800);
     expect(s.colliders().length).toBeGreaterThan(0); // content generated around the start point
+  });
+
+  it("never exposes an obstacle or gate inside any loop stretch", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    for (let i = 0; i < 4000; i++) {
+      for (const c of s.colliders()) {
+        const baseZ = s.state.distance - c.box.getCenter(new Vector3()).z;
+        expect(loopPhase(baseZ)).toBeNull();
+      }
+      s.update(0.1);
+    }
   });
 });
 
