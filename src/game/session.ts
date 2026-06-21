@@ -5,7 +5,7 @@ import { WEAPONS, upgradeOptionsAt, weaponTargets, type WeaponId } from "./upgra
 import { createThrow, type ScreenPoint } from "./throw";
 import { stepBall, detectHit, reflectBounds, type Ball, type Collider } from "../engine/physics";
 import { makeRng, pickRoom } from "../generator/levelBuilder";
-import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP, pathOffsetX, pathOffsetY } from "../content/endless";
+import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP, pathOffsetX, pathOffsetY, loopPhase, LOOP_LENGTH, LOOP_INTERVAL } from "../content/endless";
 import type { RoomTemplate } from "../content/rooms";
 
 const BASE_SPEED = 9;
@@ -105,6 +105,12 @@ export class Session {
 
   private generateAhead(): void {
     while (this.frontZ < this._state.distance + LOOKAHEAD) {
+      if (loopPhase(this.frontZ) !== null) {
+        // Clear corridor through the loop: jump to its end, no entities, no gate.
+        const start = Math.floor(this.frontZ / LOOP_INTERVAL) * LOOP_INTERVAL;
+        this.frontZ = start + LOOP_LENGTH;
+        continue;
+      }
       const tmpl = pickRoom(this.rooms, difficultyAt(this.frontZ), this.rng);
       for (const e of tmpl.entities) {
         this.entities.push({

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
 import { Session, slideX } from "./session";
 import { ROOMS } from "../content/rooms";
-import { START_BALLS, CHECKPOINT_SPACING, pathOffsetY } from "../content/endless";
+import { START_BALLS, CHECKPOINT_SPACING, pathOffsetY, LOOP_LENGTH } from "../content/endless";
 
 function cam(): PerspectiveCamera {
   const c = new PerspectiveCamera(60, 1, 0.1, 1000);
@@ -13,12 +13,27 @@ function cam(): PerspectiveCamera {
 }
 
 describe("Session (endless)", () => {
-  it("generates rooms ahead on construction and starts playing", () => {
+  it("generates rooms ahead and starts playing", () => {
     const s = new Session(ROOMS, "casual", cam(), 1);
     expect(s.state.status).toBe("playing");
     expect(s.state.balls).toBe(START_BALLS);
     expect(s.liveBalls.length).toBe(0);
+    // intro loop clears the very start; advance past it, then content appears
+    for (let i = 0; i < 200 && s.state.distance < LOOP_LENGTH + 20; i++) s.update(0.1);
     expect(s.colliders().length).toBeGreaterThan(0);
+  });
+
+  it("keeps the intro loop stretch free of obstacles and gates", () => {
+    const s = new Session(ROOMS, "casual", cam(), 1);
+    // at distance 0 the active window covers the intro loop; nothing should be there
+    expect(s.colliders().length).toBe(0);
+    // advancing into the loop stays clear until past LOOP_LENGTH
+    for (let i = 0; i < 5; i++) {
+      s.update(0.1);
+      if (s.state.distance < LOOP_LENGTH - 5) {
+        expect(s.colliders().length).toBe(0);
+      }
+    }
   });
 
   it("advances distance over time", () => {
@@ -126,7 +141,7 @@ describe("slideX", () => {
 });
 
 it("entities ride the vertical hills as the player advances", () => {
-  const s = new Session(ROOMS, "casual", cam(), 1, {}, 1500); // hilly distance
+  const s = new Session(ROOMS, "casual", cam(), 1, {}, 1570); // hilly distance, past loop at [1500,1560)
   const c0 = s.colliders().find((c) => c.kind === "obstacle");
   expect(c0).toBeDefined();
   const id = c0!.id;
