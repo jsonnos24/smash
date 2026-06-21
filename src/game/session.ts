@@ -30,6 +30,7 @@ export interface SessionEvents {
   onCheckpoint?: (distance: number) => void;
   onUpgradeChoice?: (options: WeaponId[]) => void;
   onWeaponFire?: (weapon: WeaponId, targets: Vector3[]) => void;
+  onLoopStart?: () => void;
 }
 
 interface WorldEntity {
@@ -55,6 +56,7 @@ export class Session {
   private _checkpoint = 0;
   private _t = 0;
   private weaponTimers = new Map<WeaponId, number>();
+  private _inLoop = false;
 
   constructor(
     private rooms: RoomTemplate[],
@@ -187,6 +189,9 @@ export class Session {
     this._t += dt;
     const newDistance = this._state.distance + BASE_SPEED * speedAt(this._state.distance) * dt;
     this._state = { ...this._state, distance: newDistance };
+    const inLoop = loopPhase(newDistance) !== null;
+    if (inLoop && !this._inLoop) this.events.onLoopStart?.();
+    this._inLoop = inLoop;
     this.generateAhead();
     this.entities = this.entities.filter((e) => e.baseZ >= newDistance - 30);
 

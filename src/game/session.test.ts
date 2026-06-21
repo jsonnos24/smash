@@ -140,6 +140,16 @@ describe("slideX", () => {
   });
 });
 
+it("fires onLoopStart when entering a loop (intro loop fires immediately)", () => {
+  let starts = 0;
+  const s = new Session(ROOMS, "casual", cam(), 1, { onLoopStart: () => { starts++; } });
+  s.update(0.1); // already inside the intro loop at distance ~0
+  expect(starts).toBe(1);
+  // run until we leave the intro loop and hit the next periodic loop; it fires again
+  for (let i = 0; i < 20000 && starts < 2; i++) s.update(0.05);
+  expect(starts).toBe(2);
+});
+
 it("entities ride the vertical hills as the player advances", () => {
   const s = new Session(ROOMS, "casual", cam(), 1, {}, 1570); // hilly distance, past loop at [1500,1560)
   const c0 = s.colliders().find((c) => c.kind === "obstacle");

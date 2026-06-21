@@ -1,7 +1,7 @@
 import type { Theme } from "../content/types";
 import { WebAudioBackend } from "./webaudio";
 
-export type Sfx = "throw" | "shatterGlass" | "shatterCrystal" | "crash" | "powerup" | "checkpoint";
+export type Sfx = "throw" | "shatterGlass" | "shatterCrystal" | "crash" | "powerup" | "checkpoint" | "loop";
 
 export interface AudioBackend {
   play(s: Sfx): void;

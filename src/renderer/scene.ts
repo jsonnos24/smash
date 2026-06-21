@@ -6,7 +6,7 @@ import {
 import { THEME_COLORS } from "./themes";
 import { Scenery } from "./scenery";
 import type { Theme } from "../content/types";
-import { pathOffsetX, pathOffsetY } from "../content/endless";
+import { pathOffsetX, pathOffsetY, loopPhase } from "../content/endless";
 
 export interface RenderItem {
   id: number;
@@ -239,9 +239,15 @@ export class SceneManager {
     // Floor grid fades in over the last 30% of the level.
     this.corridorFloorMaterial.opacity = Math.min(1, Math.max(0, (progress - 0.7) / 0.3)) * 0.55;
 
-    // Camera banks into upcoming turns.
-    const aheadOff = pathOffsetX(d + 12) - pathOffsetX(d);
-    this.camera.rotation.z = Math.max(-0.22, Math.min(0.22, -aheadOff * 0.05));
+    // Camera banks into turns — but a loop overrides it with a full barrel roll.
+    const lp = loopPhase(d);
+    if (lp !== null) {
+      const e = lp * lp * (3 - 2 * lp); // smoothstep: ease in/out through the roll
+      this.camera.rotation.z = e * Math.PI * 2;
+    } else {
+      const aheadOff = pathOffsetX(d + 12) - pathOffsetX(d);
+      this.camera.rotation.z = Math.max(-0.22, Math.min(0.22, -aheadOff * 0.05));
+    }
 
     // Camera noses up climbing a hill and down over a crest.
     const slopeAhead = pathOffsetY(d + 12) - pathOffsetY(d);
