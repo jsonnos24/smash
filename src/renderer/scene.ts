@@ -6,7 +6,7 @@ import {
 import { THEME_COLORS } from "./themes";
 import { Scenery } from "./scenery";
 import type { Theme } from "../content/types";
-import { pathOffsetX } from "../content/endless";
+import { pathOffsetX, pathOffsetY } from "../content/endless";
 
 export interface RenderItem {
   id: number;
@@ -71,6 +71,11 @@ export class SceneManager {
   /** Lateral offset of the corridor at corridor-local z (negative = ahead), given player distance d. */
   private curveX(d: number, z: number): number {
     return pathOffsetX(d - z) - pathOffsetX(d);
+  }
+
+  /** Vertical offset of the corridor at corridor-local z, given player distance d. */
+  private curveY(d: number, z: number): number {
+    return pathOffsetY(d - z) - pathOffsetY(d);
   }
 
   private buildCorridor(): void {
@@ -148,10 +153,11 @@ export class SceneManager {
     for (let i = 0; i < RUNGS; i++) {
       const z = ((d + i * SPACING) % CORRIDOR_DEPTH) - CORRIDOR_DEPTH;
       const cx = this.curveX(d, z);
+      const cy = this.curveY(d, z);
       const base = i * 8 * 3;
       for (let v = 0; v < 8; v++) {
         this.corridorRungPositions[base + v * 3 + 0] = rungXSign[v] * w + cx;
-        this.corridorRungPositions[base + v * 3 + 1] = rungYIsCeil[v] ? CEIL_Y : FLOOR_Y;
+        this.corridorRungPositions[base + v * 3 + 1] = (rungYIsCeil[v] ? CEIL_Y : FLOOR_Y) + cy;
         this.corridorRungPositions[base + v * 3 + 2] = z;
       }
     }
@@ -170,12 +176,14 @@ export class SceneManager {
         const z1 = NEAR_Z - (s + 1) * EDGE_SEG_LEN;
         const cx0 = this.curveX(d, z0);
         const cx1 = this.curveX(d, z1);
+        const cy0 = this.curveY(d, z0);
+        const cy1 = this.curveY(d, z1);
         const off = edgeOffset + s * 2 * 3;
         this.corridorEdgePositions[off + 0] = xSign * w + cx0;
-        this.corridorEdgePositions[off + 1] = baseY;
+        this.corridorEdgePositions[off + 1] = baseY + cy0;
         this.corridorEdgePositions[off + 2] = z0;
         this.corridorEdgePositions[off + 3] = xSign * w + cx1;
-        this.corridorEdgePositions[off + 4] = baseY;
+        this.corridorEdgePositions[off + 4] = baseY + cy1;
         this.corridorEdgePositions[off + 5] = z1;
       }
     }
@@ -194,12 +202,14 @@ export class SceneManager {
         const z1 = NEAR_Z - (s + 1) * EDGE_SEG_LEN;
         const cx0 = this.curveX(d, z0);
         const cx1 = this.curveX(d, z1);
+        const cy0 = this.curveY(d, z0);
+        const cy1 = this.curveY(d, z1);
         const off = lineOff + s * 2 * 3;
         this.corridorFloorPositions[off + 0] = baseX + cx0;
-        this.corridorFloorPositions[off + 1] = FLOOR_Y;
+        this.corridorFloorPositions[off + 1] = FLOOR_Y + cy0;
         this.corridorFloorPositions[off + 2] = z0;
         this.corridorFloorPositions[off + 3] = baseX + cx1;
-        this.corridorFloorPositions[off + 4] = FLOOR_Y;
+        this.corridorFloorPositions[off + 4] = FLOOR_Y + cy1;
         this.corridorFloorPositions[off + 5] = z1;
       }
     }
@@ -208,12 +218,13 @@ export class SceneManager {
     for (let i = 0; i < RUNGS; i++) {
       const z = this.corridorFloorLateralZ[i];
       const cx = this.curveX(d, z);
+      const cy = this.curveY(d, z);
       const off = latBase + i * 2 * 3;
       this.corridorFloorPositions[off + 0] = -w + cx;
-      this.corridorFloorPositions[off + 1] = FLOOR_Y;
+      this.corridorFloorPositions[off + 1] = FLOOR_Y + cy;
       this.corridorFloorPositions[off + 2] = z;
       this.corridorFloorPositions[off + 3] =  w + cx;
-      this.corridorFloorPositions[off + 4] = FLOOR_Y;
+      this.corridorFloorPositions[off + 4] = FLOOR_Y + cy;
       this.corridorFloorPositions[off + 5] = z;
     }
     const fattr = this.corridorFloorGeom.getAttribute("position") as Float32BufferAttribute;
@@ -231,6 +242,10 @@ export class SceneManager {
     // Camera banks into upcoming turns.
     const aheadOff = pathOffsetX(d + 12) - pathOffsetX(d);
     this.camera.rotation.z = Math.max(-0.22, Math.min(0.22, -aheadOff * 0.05));
+
+    // Camera noses up climbing a hill and down over a crest.
+    const slopeAhead = pathOffsetY(d + 12) - pathOffsetY(d);
+    this.camera.rotation.x = Math.max(-0.3, Math.min(0.3, slopeAhead * 0.03));
 
     this.scenery.update(distance);
   }
