@@ -34,3 +34,11 @@ export function themeAt(checkpointIndex: number): Theme {
 export function pathOffsetX(distance: number): number {
   return 1.7 * Math.sin(distance * 0.016) + 0.9 * Math.sin(distance * 0.039);
 }
+
+/** Vertical height of the track at path-distance s — rolling hills that grow steeper deeper in. */
+export function pathOffsetY(distance: number): number {
+  const d = Math.max(0, distance);
+  const amp = 0.4 + Math.min(2.6, d / 700); // ramps 0.4 → 3.0 by ~1820m
+  const shape = 0.7 * Math.sin(d * 0.02) + 0.3 * Math.sin(d * 0.047);
+  return amp * shape;
+}
