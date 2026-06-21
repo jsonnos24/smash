@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { difficultyAt, speedAt, pathOffsetX, pathOffsetY, trackSlope } from "./endless";
+import { difficultyAt, speedAt, pathOffsetX, pathOffsetY, trackSlope, loopPhase, LOOP_LENGTH, LOOP_INTERVAL } from "./endless";
 
 describe("difficultyAt", () => {
   it("starts at 1, rises monotonically, and caps at 9", () => {
@@ -67,5 +67,25 @@ describe("pathOffsetY", () => {
       return m;
     };
     expect(peak(1600, 1920)).toBeGreaterThan(peak(0, 320));
+  });
+});
+
+describe("loopPhase", () => {
+  it("plays an intro loop at the start of the run", () => {
+    expect(loopPhase(0)).toBeCloseTo(0, 6);
+    expect(loopPhase(LOOP_LENGTH / 2)).toBeCloseTo(0.5, 6);
+    expect(loopPhase(LOOP_LENGTH - 0.001)).toBeGreaterThan(0.99);
+  });
+
+  it("returns null between loops", () => {
+    expect(loopPhase(LOOP_LENGTH + 1)).toBeNull();
+    expect(loopPhase(LOOP_INTERVAL - 1)).toBeNull();
+  });
+
+  it("plays a periodic loop at each interval", () => {
+    expect(loopPhase(LOOP_INTERVAL)).toBeCloseTo(0, 6);
+    expect(loopPhase(LOOP_INTERVAL + LOOP_LENGTH / 2)).toBeCloseTo(0.5, 6);
+    expect(loopPhase(LOOP_INTERVAL + LOOP_LENGTH + 1)).toBeNull();
+    expect(loopPhase(2 * LOOP_INTERVAL)).toBeCloseTo(0, 6);
   });
 });

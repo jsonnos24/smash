@@ -50,3 +50,15 @@ export function pathOffsetY(distance: number): number {
   const shape = 0.7 * Math.sin(d * 0.02) + 0.3 * Math.sin(d * 0.047);
   return amp * shape;
 }
+
+/** A loop occupies LOOP_LENGTH meters; one starts every LOOP_INTERVAL meters (n=0 is the intro loop at 0). */
+export const LOOP_LENGTH = 60;
+export const LOOP_INTERVAL = 500;
+
+/** Progress (0..1) through a loop interlude at this distance, or null if not in a loop. */
+export function loopPhase(distance: number): number | null {
+  if (distance < 0) return null;
+  const start = Math.floor(distance / LOOP_INTERVAL) * LOOP_INTERVAL;
+  const into = distance - start;
+  return into < LOOP_LENGTH ? into / LOOP_LENGTH : null;
+}
