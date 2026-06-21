@@ -5,7 +5,7 @@ import { WEAPONS, upgradeOptionsAt, weaponTargets, type WeaponId } from "./upgra
 import { createThrow, type ScreenPoint } from "./throw";
 import { stepBall, detectHit, reflectBounds, type Ball, type Collider } from "../engine/physics";
 import { makeRng, pickRoom } from "../generator/levelBuilder";
-import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP, pathOffsetX } from "../content/endless";
+import { difficultyAt, speedAt, START_BALLS, MAX_BALLS, CHECKPOINT_SPACING, LOOKAHEAD, DOOR_HITS, GATE_GAP, pathOffsetX, pathOffsetY } from "../content/endless";
 import type { RoomTemplate } from "../content/rooms";
 
 const BASE_SPEED = 9;
@@ -132,11 +132,12 @@ export class Session {
       const z = this.worldZ(e.baseZ);
       if (z < ACTIVE_FAR || z > ACTIVE_NEAR) continue;
       const ex = this.currentX(e);
+      const ey = this.currentY(e);
       const h = e.size;
       out.push({
         id: e.id,
         kind: e.kind,
-        box: new Box3(new Vector3(ex - h, e.y - h, z - h), new Vector3(ex + h, e.y + h, z + h)),
+        box: new Box3(new Vector3(ex - h, ey - h, z - h), new Vector3(ex + h, ey + h, z + h)),
         damaged: e.kind === "door" && e.hits < DOOR_HITS,
         spin: e.motion === "spin" ? this._t * SPIN_SPEED : undefined,
       });
@@ -147,6 +148,10 @@ export class Session {
   private currentX(e: WorldEntity): number {
     const base = e.motion === "slide" ? slideX(e.x, e.baseZ, this._t) : e.x;
     return base + (pathOffsetX(e.baseZ) - pathOffsetX(this._state.distance));
+  }
+
+  private currentY(e: WorldEntity): number {
+    return e.y + (pathOffsetY(e.baseZ) - pathOffsetY(this._state.distance));
   }
 
   throwBall(p: ScreenPoint): void {
@@ -235,7 +240,7 @@ export class Session {
   private resolveHit(collider: Collider): void {
     const e = this.entities.find((x) => x.id === collider.id);
     if (!e || e.consumed) return;
-    const at = new Vector3(this.currentX(e), e.y, this.worldZ(e.baseZ));
+    const at = new Vector3(this.currentX(e), this.currentY(e), this.worldZ(e.baseZ));
     if (e.kind === "door") {
       e.hits -= 1;
       const broke = e.hits <= 0;
@@ -283,7 +288,7 @@ export class Session {
       if (!e || e.consumed) continue;
       e.consumed = true;
       this._state = applyWeaponKill(this._state);
-      const at = new Vector3(this.currentX(e), e.y, this.worldZ(e.baseZ));
+      const at = new Vector3(this.currentX(e), this.currentY(e), this.worldZ(e.baseZ));
       this.events.onShatter?.("obstacle", at);
       hits.push(at.clone());
     }

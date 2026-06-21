@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
 import { Session, slideX } from "./session";
 import { ROOMS } from "../content/rooms";
-import { START_BALLS, CHECKPOINT_SPACING } from "../content/endless";
+import { START_BALLS, CHECKPOINT_SPACING, pathOffsetY } from "../content/endless";
 
 function cam(): PerspectiveCamera {
   const c = new PerspectiveCamera(60, 1, 0.1, 1000);
@@ -123,4 +123,28 @@ describe("slideX", () => {
     const v = slideX(1, 0, Math.PI / (2 * 1.6), 2, 1.6); // sin(pi/2)=1 → 1 + 2
     expect(v).toBeCloseTo(3, 5);
   });
+});
+
+it("entities ride the vertical hills as the player advances", () => {
+  const s = new Session(ROOMS, "casual", cam(), 1, {}, 1500); // hilly distance
+  const c0 = s.colliders().find((c) => c.kind === "obstacle");
+  expect(c0).toBeDefined();
+  const id = c0!.id;
+  const z0 = c0!.box.getCenter(new Vector3()).z;
+  const d0 = s.state.distance;
+  const y0 = c0!.box.getCenter(new Vector3()).y;
+
+  s.update(0.05); // small step: same entity still active, distance advanced
+
+  const c1 = s.colliders().find((c) => c.id === id);
+  expect(c1).toBeDefined();
+  const d1 = s.state.distance;
+  const y1 = c1!.box.getCenter(new Vector3()).y;
+
+  const baseZ = d0 - z0; // worldZ = distance - baseZ  ⇒  baseZ = distance - worldZ (constant)
+  const expectedDelta =
+    (pathOffsetY(baseZ) - pathOffsetY(d1)) - (pathOffsetY(baseZ) - pathOffsetY(d0));
+  expect(y1 - y0).toBeCloseTo(expectedDelta, 4);
+  // and the hill actually moved it (non-trivial delta at this distance)
+  expect(Math.abs(y1 - y0)).toBeGreaterThan(0);
 });
